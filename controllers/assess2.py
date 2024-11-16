@@ -1196,7 +1196,7 @@ def rat_tables():
         99: T("Other (specify)")
     }
 
-    rat_ranking_opts = range(1, 7)
+    rat_ranking_opts = list(range(1, 7))
 
     tablename = "assess_section7"
     define_table(tablename,

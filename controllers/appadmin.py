@@ -75,7 +75,7 @@ response.view = "admin/appadmin.html"
 
 def get_databases(request):
     dbs = {}
-    for (key, value) in global_env.items():
+    for (key, value) in list(global_env.items()):
         cond = False
         try:
             cond = isinstance(value, GQLDB)
@@ -403,7 +403,7 @@ def ccache():
 
         return (hours, minutes, seconds)
 
-    for key, value in cache.ram.storage.items():
+    for key, value in list(cache.ram.storage.items()):
         if isinstance(value, dict):
             ram['hits'] = value['hit_total'] - value['misses']
             ram['misses'] = value['misses']
@@ -427,7 +427,7 @@ def ccache():
     disk_storage = shelve.open(
         os.path.join(folder, 'cache.shelve'))
     try:
-        for key, value in disk_storage.items():
+        for key, value in list(disk_storage.items()):
             if isinstance(value, dict):
                 disk['hits'] = value['hit_total'] - value['misses']
                 disk['misses'] = value['misses']

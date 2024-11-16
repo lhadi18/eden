@@ -88,7 +88,7 @@ def person():
         if r.component_name == "config":
             _config = s3db.gis_config
             defaults = db(_config.id == 1).select(limitby=(0, 1)).first()
-            for key in defaults.keys():
+            for key in list(defaults.keys()):
                 if key not in ["id",
                                "uuid",
                                "mci",

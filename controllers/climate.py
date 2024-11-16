@@ -79,9 +79,9 @@ def climate_overlay_data():
 
     arguments = {}
     errors = []
-    for kwarg_name, converter in dict(
+    for kwarg_name, converter in list(dict(
         query_expression = str,
-    ).items():
+    ).items()):
         try:
             value = kwargs.pop(kwarg_name)
         except KeyError:
@@ -130,9 +130,9 @@ def climate_csv_location_data():
 
     arguments = {}
     errors = []
-    for kwarg_name, converter in dict(
+    for kwarg_name, converter in list(dict(
         query_expression = str,
-    ).items():
+    ).items()):
         try:
             value = kwargs.pop(kwarg_name)
         except KeyError:
@@ -178,13 +178,13 @@ def _climate_chart(content_type):
             return list(map(converter, choices))
         return convert_list
     checked_specs = []
-    for label, spec in specs.items():
+    for label, spec in list(specs.items()):
         arguments = {}
         errors = []
-        for name, converter in dict(
+        for name, converter in list(dict(
             query_expression = str,
             place_ids = list_of(int)
-        ).items():
+        ).items()):
             try:
                 value = spec.pop(name)
             except KeyError:

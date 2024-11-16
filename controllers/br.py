@@ -3,6 +3,7 @@
 """
     Beneficiary Registry and Case Management Controllers
 """
+from functools import reduce
 
 if not settings.has_module(c):
     raise HTTP(404, body="Module disabled: %s" % c)
