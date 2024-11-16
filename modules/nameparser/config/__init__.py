@@ -43,10 +43,10 @@ from nameparser.config.titles import TITLES
 from nameparser.config.titles import FIRST_NAME_TITLES
 from nameparser.config.regexes import REGEXES
 
-class SetManager(collections.Set):
+class SetManager(collections.abc.Set):
     '''
     Easily add and remove config variables per module or instance. Subclass of
-    ``collections.Set``.
+    ``collections.abc.Set``.
 
     Only special functionality beyond that provided by set() is
     to normalize constants for comparison (lower case, no periods)

@@ -1668,7 +1668,7 @@ def s3_str(s, encoding="utf-8"):
 def s3_flatlist(nested):
     """ Iterator to flatten mixed iterables of arbitrary depth """
     for item in nested:
-        if isinstance(item, collections.Iterable) and \
+        if isinstance(item, collections.abc.Iterable) and \
            not isinstance(item, str):
             for sub in s3_flatlist(item):
                 yield sub
