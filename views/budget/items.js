@@ -15,9 +15,9 @@ $(function() {
     megabyteCostRow.hide();
             
     // When the Cost type changes:
-	costTypeSelect.change(function() {
+	const toggleCostInputs = () => {
 		// What is the new cost type?
-        cost_type = $(this).val();
+        cost_type = costTypeSelect.val();
         if (cost_type==2) {
             // Hide the Category
             categoryRow.hide();
@@ -36,7 +36,13 @@ $(function() {
             categoryRow.show();
             unitCostRow.show();
         }
-	})
+	};
+
+    // Initialize the form based on the default cost type
+    toggleCostInputs();
+
+    // Handle change event for cost type selection
+    costTypeSelect.change(toggleCostInputs);
     
     // Set unused values before submitting form
     $("input[type='submit']:last").click(function(event){
