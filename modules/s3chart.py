@@ -1,214 +1,117 @@
-# -*- coding: utf-8 -*-
-
-""" S3 Charting Toolkit
-
-    @copyright: 2011-2021 (c) Sahana Software Foundation
-    @license: MIT
-
-    @requires: U{B{I{NumPy}} <http://www.numpy.org>}
-    @requires: U{B{I{MatPlotLib}} <http://matplotlib.sourceforge.net>}
-
-    Permission is hereby granted, free of charge, to any person
-    obtaining a copy of this software and associated documentation
-    files (the "Software"), to deal in the Software without
-    restriction, including without limitation the rights to use,
-    copy, modify, merge, publish, distribute, sublicense, and/or sell
-    copies of the Software, and to permit persons to whom the
-    Software is furnished to do so, subject to the following
-    conditions:
-
-    The above copyright notice and this permission notice shall be
-    included in all copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
-    OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-    NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
-    HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-    WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
-    OTHER DEALINGS IN THE SOFTWARE.
-"""
-
-__all__ = ("S3Chart",
-           )
-
+import os
 from io import StringIO
-
-from gluon import current
 from gluon.storage import Storage
 from gluon.html import IMG
+from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
+from matplotlib.figure import Figure
+import base64
 
-# =============================================================================
-class S3Chart(object):
+# Constants for easier management
+CACHE_PATH = f"/{current.request.application}/static/cache/chart"
+APPLICATIONS_PATH = "applications"
+IMAGE_FORMAT = "image/png"
+
+class S3Chart:
     """
-        Module for graphing
-
-        Currently a simple wrapper to matplotlib
+        Module for graphing, currently a simple wrapper to matplotlib.
     """
-
-    # This folder needs to be writable by the web2py process
-    CACHE_PATH = "/%s/static/cache/chart"  %  current.request.application
-
-    # -------------------------------------------------------------------------
+    
     def __init__(self, path, width=9, height=6):
-        """
-            Create the base Figure object
-
-            Args:
-                height: x100px
-                width: x100px
-        """
-        try:
-            # Causes deadlocking issues
-            # http://sjohannes.wordpress.com/2010/06/11/using-matplotlib-in-a-web-application/
-            #import matplotlib
-            #matplotlib.use("Agg")
-            #import matplotlib.pyplot as plt
-            #from pylab import savefig
-            from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
-            from matplotlib.figure import Figure
-        except ImportError:
-            import sys
-            sys.stderr.write("WARNING: S3Chart unresolved dependency: matplotlib required for charting\n")
-            MATPLOTLIB = False
-        else:
-            MATPLOTLIB = True
-            self.FigureCanvas = FigureCanvas
-            self.Figure = Figure
-
         self.filename = path
         self.width = width
         self.height = height
-        self.asInt = False
-        if MATPLOTLIB:
-            self.fig = Figure(figsize=(width, height))
-        else:
-            self.fig = None
+        self.fig = None
 
-    # -------------------------------------------------------------------------
-    @staticmethod
-    def getCachedPath(filename):
-        import os
-        path = "applications"
-        chartFile = "%s/%s.png" % (S3Chart.CACHE_PATH, filename)
-        fullPath = "%s%s" % (path, chartFile)
-        if os.path.exists(fullPath):
-            return chartFile
-        else:
-            return None
-
-    # -------------------------------------------------------------------------
-    @staticmethod
-    def getCachedFile(filename):
-        """
-            Return the opened cached file, if the file can't be found then
-            return None
-        """
-        chartFile = S3Chart.getCachedPath(filename)
-        if chartFile:
-            try:
-                f = open(chartFile)
-                return f.read()
-            except:
-                # for some reason been unable to get the cached version
-                pass
-        return None
-
-    # -------------------------------------------------------------------------
-    @staticmethod
-    def storeCachedFile(filename, image):
-        """
-            Save the file in the cache area, and return the path to this file
-        """
-
-        path = "applications"
-        chartFile = "%s/%s.png" % (S3Chart.CACHE_PATH, filename)
-        fullPath = "%s%s" % (path, chartFile)
         try:
-            with open(fullPath, "w+") as f:
-                f.write(image)
-        except:
-            return None
-        return chartFile
-
-    # -------------------------------------------------------------------------
+            self.fig = Figure(figsize=(width, height))
+            self.canvas = FigureCanvas(self.fig)
+        except ImportError:
+            self.fig = None
+            print("WARNING: S3Chart requires matplotlib for charting.")
+    
     @staticmethod
-    def purgeCache(prefix=None):
+    def get_cached_file(filename):
         """
-            Delete the files in the cache that match the file name prefix,
-            if the prefix is None then all files will be deleted
+            Return the content of the cached file, or None if not found.
         """
-
-        import os
-        folder = "applications%s/" % S3Chart.CACHE_PATH
+        cache_path = S3Chart._get_cached_path(filename)
+        if cache_path and os.path.exists(cache_path):
+            try:
+                with open(cache_path, "r") as file:
+                    return file.read()
+            except Exception as e:
+                print(f"Error reading cached file: {e}")
+        return None
+    
+    @staticmethod
+    def _get_cached_path(filename):
+        """
+            Return the full path to the cached file.
+        """
+        return f"{APPLICATIONS_PATH}{CACHE_PATH}/{filename}.png"
+    
+    @staticmethod
+    def store_cached_file(filename, image):
+        """
+            Save image to cache and return the relative path.
+        """
+        cache_path = S3Chart._get_cached_path(filename)
+        try:
+            with open(cache_path, "wb") as f:
+                f.write(image)
+            return cache_path
+        except Exception as e:
+            print(f"Error storing cached file: {e}")
+        return None
+    
+    @staticmethod
+    def purge_cache(prefix=None):
+        """
+            Delete cached files with optional filename prefix.
+        """
+        folder = f"{APPLICATIONS_PATH}{CACHE_PATH}/"
         if os.path.exists(folder):
-            filelist = os.listdir(folder)
-            for file in filelist:
-                if prefix == None or file.startswith(prefix):
-                    os.remove("%s%s" % (folder, file))
-
-    # -------------------------------------------------------------------------
+            for file in os.listdir(folder):
+                if prefix is None or file.startswith(prefix):
+                    os.remove(os.path.join(folder, file))
+    
     def draw(self, output="xml"):
         """
-            Output the chart as a PNG embedded in an IMG tag
-                - used by the Delphi module
+            Render the chart and return an image embedded in an IMG tag (XML).
         """
-
-        fig = self.fig
-        if not fig:
+        if not self.fig:
             return "Matplotlib not installed"
 
-        # For interactive shell tests
-        #plt.show()
-        # For web response
-        #savefig(response.body)
-        chart = Storage()
-        chart.body = StringIO()
-        chart.headers = Storage()
-        chart.headers["Content-Type"] = "image/png"
+        chart = Storage(body=StringIO(), headers=Storage())
+        chart.headers["Content-Type"] = IMAGE_FORMAT
 
-        canvas = self.FigureCanvas(fig)
-        canvas.print_figure(chart.body)
-        #return response.body.getvalue()
+        self.canvas.print_figure(chart.body)
         image = chart.body.getvalue()
-        # IE 8 and before has a 32K limit on URIs this can be quickly
-        # gobbled up if the image is too large. So the image will
-        # stored on the server and a URI used in the src
-        cachePath = self.storeCachedFile(self.filename, image)
+        cache_path = self.store_cached_file(self.filename, image)
+        
         if output == "xml":
-            if cachePath != None:
-                image = IMG(_src = cachePath)
+            if cache_path:
+                return IMG(_src=cache_path)
             else:
-                import base64
-                base64Img = base64.b64encode(image)
-                image = IMG(_src="data:image/png;base64,%s" % base64Img)
+                base64_img = base64.b64encode(image).decode("utf-8")
+                return IMG(_src=f"data:{IMAGE_FORMAT};base64,{base64_img}")
         else:
-            current.response.headers["Content-Type"] = "image/png"
-        return image
-
-    # -------------------------------------------------------------------------
-    def survey_hist(self, title,
-                    data, bins, min, max, xlabel=None, ylabel=None):
+            current.response.headers["Content-Type"] = IMAGE_FORMAT
+            return image
+    
+    def survey_hist(self, title, data, bins, min_val, max_val, xlabel=None, ylabel=None):
         """
-            Draw a Histogram
-                - used by the Survey module
+            Draw a Histogram.
         """
-
-        fig = self.fig
-        if not fig:
+        if not self.fig:
             return "Matplotlib not installed"
-
+        
         from numpy import arange
 
-        # Draw a histogram
-        ax = fig.add_subplot(111)
-        ax.hist(data, bins=bins, range=(min, max))
-        left = arange(0, bins + 1)
-        if self.asInt:
-            label = left * int(max / bins)
-        else:
-            label = left * max / bins
+        ax = self.fig.add_subplot(111)
+        ax.hist(data, bins=bins, range=(min_val, max_val))
+
+        label = arange(0, bins + 1) * (max_val / bins)
         ax.set_xticks(label)
         ax.set_xticklabels(label, rotation=30)
         ax.set_title(title)

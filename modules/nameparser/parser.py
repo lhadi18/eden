@@ -1,23 +1,20 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
-
 import sys
 from operator import itemgetter
 from itertools import groupby
-
 from nameparser.util import u
 from nameparser.util import text_types, binary_type
 from nameparser.util import lc
 from nameparser.util import log
-from nameparser.config import CONSTANTS
-from nameparser.config import Constants
+from nameparser.config import CONSTANTS, Constants
 
 ENCODING = 'utf-8'
 
 def group_contiguous_integers(data):
     """
-    return list of tuples containing first and last index
-    position of contiguous numbers in a series
+    Return list of tuples containing first and last index
+    positions of contiguous numbers in a series.
     """
     ranges = []
     for key, group in groupby(enumerate(data), lambda i: i[0] - i[1]):
@@ -29,81 +26,41 @@ def group_contiguous_integers(data):
 class HumanName(object):
     """
     Parse a person's name into individual components.
-
-    Instantiation assigns to ``full_name``, and assignment to
-    :py:attr:`full_name` triggers :py:func:`parse_full_name`. After parsing the
-    name, these instance attributes are available.
-
-    **HumanName Instance Attributes**
-
-    * :py:attr:`title`
-    * :py:attr:`first`
-    * :py:attr:`middle`
-    * :py:attr:`last`
-    * :py:attr:`suffix`
-    * :py:attr:`nickname`
-
-    :param str full_name: The name string to be parsed.
-    :param constants constants:
-        a :py:class:`~nameparser.config.Constants` instance. Pass ``None`` for
-        `per-instance config <customize.html>`_.
-    :param str encoding: string representing the encoding of your input
-    :param str string_format: python string formatting
     """
 
     C = CONSTANTS
-    """
-    A reference to the configuration for this instance, which may or may not be
-    a reference to the shared, module-wide instance at
-    :py:mod:`~nameparser.config.CONSTANTS`. See `Customizing the Parser
-    <customize.html>`_.
-    """
-
     original = ''
-    """
-    The original string, untouched by the parser.
-    """
-
     _count = 0
-    _members = ['title','first','middle','last','suffix','nickname']
+    _members = ['title', 'first', 'middle', 'last', 'suffix', 'nickname']
     unparsable = True
     _full_name = ''
 
-    def __init__(self, full_name="", constants=CONSTANTS, encoding=ENCODING,
-                string_format=None):
-        self.C = constants
-        if type(self.C) is not type(CONSTANTS):
-            self.C = Constants()
-
+    def __init__(self, full_name="", constants=CONSTANTS, encoding=ENCODING, string_format=None):
+        self.C = constants if isinstance(constants, Constants) else Constants()
         self.ENCODING = encoding
         self.string_format = string_format or self.C.string_format
-        # full_name setter triggers the parse
-        self.full_name = full_name
+        self.full_name = full_name  # Triggers parsing
 
     def __iter__(self):
-        return self
+        return iter([getattr(self, member) for member in self._members])
 
     def __len__(self):
-        l = 0
-        for x in self:
-            l += 1
-        return l
+        return sum(1 for _ in self)
 
     def __eq__(self, other):
         """
         HumanName instances are equal to other objects whose
         lower case unicode representation is the same.
         """
-        return (u(self)).lower() == (u(other)).lower()
+        return u(self).lower() == u(other).lower()
 
     def __ne__(self, other):
-        return not (u(self)).lower() == (u(other)).lower()
+        return not (u(self).lower() == u(other).lower())
 
     def __getitem__(self, key):
         if isinstance(key, slice):
-            return [getattr(self, x) for x in self._members[key]]
-        else:
-            return getattr(self, key)
+            return [getattr(self, member) for member in self._members[key]]
+        return getattr(self, key)
 
     def __setitem__(self, key, value):
         if key in self._members:
@@ -111,48 +68,25 @@ class HumanName(object):
         else:
             raise KeyError("Not a valid HumanName attribute", key)
 
-    def next(self):
-        return self.__next__()
-
     def __next__(self):
         if self._count >= len(self._members):
             self._count = 0
             raise StopIteration
-        else:
-            c = self._count
-            self._count = c + 1
-            return getattr(self, self._members[c]) or next(self)
+        return getattr(self, self._members[self._count])
 
     def __unicode__(self):
         if self.string_format:
-            # string_format = "{title} {first} {middle} {last} {suffix} ({nickname})"
-            _s = self.string_format.format(**self.as_dict())
-            # remove trailing punctation from missing nicknames
-            _s = _s.replace(str(self.C.empty_attribute_default),'').replace(" ()","").replace(" ''","").replace(' ""',"")
-            return self.collapse_whitespace(_s).strip(', ')
+            formatted_str = self.string_format.format(**self.as_dict())
+            return self.collapse_whitespace(formatted_str.strip(', ').replace(str(self.C.empty_attribute_default), ''))
         return " ".join(self)
 
     def __str__(self):
-        if sys.version >= '3':
-            return self.__unicode__()
-        return self.__unicode__().encode(self.ENCODING)
+        return self.__unicode__()
 
     def __repr__(self):
         if self.unparsable:
-            _string = "<%(class)s : [ Unparsable ] >" % {'class': self.__class__.__name__,}
-        else:
-            _string = "<%(class)s : [\n\ttitle: '%(title)s' \n\tfirst: '%(first)s' \n\tmiddle: '%(middle)s' \n\tlast: '%(last)s' \n\tsuffix: '%(suffix)s'\n\tnickname: '%(nickname)s'\n]>" % {
-                'class': self.__class__.__name__,
-                'title': self.title or '',
-                'first': self.first or '',
-                'middle': self.middle or '',
-                'last': self.last or '',
-                'suffix': self.suffix or '',
-                'nickname': self.nickname or '',
-            }
-        if sys.version >= '3':
-            return _string
-        return _string.encode(self.ENCODING)
+            return f"<{self.__class__.__name__} : [ Unparsable ] >"
+        return f"<{self.__class__.__name__} : [\n\ttitle: '{self.title}' \n\tfirst: '{self.first}' \n\tmiddle: '{self.middle}' \n\tlast: '{self.last}' \n\tsuffix: '{self.suffix}'\n\tnickname: '{self.nickname}'\n]>"
 
     def as_dict(self, include_empty=True):
         """

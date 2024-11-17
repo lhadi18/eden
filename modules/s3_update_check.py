@@ -210,103 +210,54 @@ def update_check(settings):
     return {"error_messages": errors, "warning_messages": warnings}
 
 # -------------------------------------------------------------------------
-def parse_requirements(output, filepath):
-    """
-    """
-
+def read_file_lines(filepath):
     try:
         with open(filepath) as filehandle:
-            dependencies = filehandle.read().splitlines()
-            msg = ""
-            for dependency in dependencies:
-                if dependency[0] == "#":
-                    # either a normal comment or custom message
-                    if dependency[:9] == "# Warning" or dependency[7] == "# Error:":
-                        msg = dependency.split(":", 1)[1]
-                else:
-                    import re
-                    # Check if the module name is different from the package name
-                    if "#" in dependency:
-                        dep = dependency.split("#", 1)[1]
-                        output[dep] = msg
-                    else:
-                        pattern = re.compile(r'([A-Za-z0-9_-]+)')
-                        try:
-                            dep = pattern.match(dependency).group(1)
-                            output[dep] = msg
-                        except AttributeError:
-                            # Invalid dependency syntax
-                            pass
-                    msg = ""
+            return filehandle.read().splitlines()
     except IOError:
-        # No override for Template
-        pass
+        return []
 
+def parse_requirements(output, filepath):
+    lines = read_file_lines(filepath)
+    msg = ""
+    for dependency in lines:
+        if dependency.startswith("#"):
+            if "Warning" in dependency or "Error" in dependency:
+                msg = dependency.split(":", 1)[1]
+        else:
+            dep = dependency.split("#", 1)[1] if "#" in dependency else dependency
+            output[dep] = msg
+            msg = ""
     return output
 
 # -------------------------------------------------------------------------
+def check_dependencies(dependencies, message_type="error"):
+    """
+    Check and import dependencies and handle any ImportErrors.
+    
+    Args:
+        dependencies: dict of dependency -> message
+        message_type: "error" or "warning" based on severity
+    Returns:
+        A tuple of (errors, warnings)
+    """
+    issues = []
+    for dependency, message in dependencies.items():
+        try:
+            exec(dependency)
+        except ImportError:
+            issues.append(message or f"{dependency} required")
+        except Exception as e:
+            issues.append(f"Error when loading {dependency}: {str(e)}")
+    return issues if message_type == "error" else ([], issues)
+
 def s3_check_python_lib(global_mandatory, template_mandatory, template_optional, global_optional):
-    """
-        checks for optional as well as mandatory python libraries
-    """
-
-    errors = []
-    warnings = []
-
-    for dependency, err in global_mandatory.items():
-        try:
-            if "from" in dependency:
-                exec(dependency)
-            else:
-                exec("import %s" % dependency)
-        except ImportError:
-            if err:
-                errors.append(err)
-            else:
-                errors.append("S3 unresolved dependency: %s required for Sahana to run" % dependency)
-
-    for dependency, err in template_mandatory.items():
-        try:
-            if "from" in dependency:
-                exec(dependency)
-            else:
-                exec("import %s" % dependency)
-        except ImportError:
-            if err:
-                errors.append(err)
-            else:
-                errors.append("Unresolved template dependency: %s required" % dependency)
-
-    for dependency, warn in template_optional.items():
-        try:
-            if "from" in dependency:
-                exec(dependency)
-            else:
-                exec("import %s" % dependency)
-        except ImportError:
-            if warn:
-                warnings.append(warn)
-            else:
-                warnings.append("Unresolved optional dependency: %s required" % dependency)
-        except Exception:
-            # Broken module, warn + pass for now
-            warnings.append("Error when loading optional dependency: %s" % dependency)
-
-    for dependency, warn in global_optional.items():
-        try:
-            if "from" in dependency:
-                exec(dependency)
-            else:
-                exec("import %s" % dependency)
-        except ImportError:
-            if warn:
-                warnings.append(warn)
-            else:
-                warnings.append("Unresolved optional dependency: %s required" % dependency)
-        except Exception:
-            # Broken module, warn + pass for now
-            warnings.append("Error when loading optional dependency: %s" % dependency)
-
+    errors, warnings = [], []
+    errors += check_dependencies(global_mandatory, "error")
+    errors += check_dependencies(template_mandatory, "error")
+    warnings += check_dependencies(template_optional, "warning")[1]
+    warnings += check_dependencies(global_optional, "warning")[1]
     return errors, warnings
+
 
 # END =========================================================================
