@@ -1,4 +1,4 @@
-# Sahana Eden Project
+![alt text](edenlogo.jpg)
 
 # Table of Contents
 - [What is Sahana Eden?](#what-is-sahana-eden)
