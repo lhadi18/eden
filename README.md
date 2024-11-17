@@ -2,6 +2,7 @@
 
 # Table of Contents
 - [What is Sahana Eden?](#what-is-sahana-eden)
+- [Use Cases](#use-cases)
 - [Want to Use Sahana Eden?](#want-to-use-sahana-eden)
 - [How to Report a Bug or Request a Feature?](#how-to-report-a-bug-or-request-a-feature)
 - [Want to Contribute to Sahana Eden?](#want-to-contribute-to-sahana-eden)
@@ -13,10 +14,15 @@
 
 For more details, visit the [Sahana Eden website](http://eden.sahanafoundation.org/).
 
+## Use Cases
+- **Disaster Relief Coordination:** Used to manage resources and track missing persons during disasters.
+- **Volunteer Management:** Helps coordinate large groups of volunteers across multiple locations.
+- **Community Development:** Assists NGOs in managing long-term projects and resource distribution.
+
 ## Want to Use Sahana Eden?
 
 Install the software on your own system:
-- [Installation Guidlines](https://eden.sahanafoundation.org/wiki/InstallationGuidelines)
+- [Installation Guidelines](https://eden.sahanafoundation.org/wiki/InstallationGuidelines)
 
 Read the book:
 - [Book](https://eden.sahanafoundation.org/wiki/Book)
