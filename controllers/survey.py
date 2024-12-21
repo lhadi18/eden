@@ -487,7 +487,7 @@ def series_export_word(widget_list, lang_dict, title, logo):
     col = [2800, 6500]
     table = pyrtf.Table(*col)
     AddRow = table.AddRow
-    sorted_widget_list = sorted(widget_list.values(),
+    sorted_widget_list = sorted(list(widget_list.values()),
                               key=lambda widget: widget.question.posn)
     for widget in sorted_widget_list:
         line = widget.writeQuestionToRTF(ss, lang_dict)
@@ -592,7 +592,7 @@ def series_export_spreadsheet(matrix, matrix_answers, logo):
         """
 
         element_list = new_obj.__dict__
-        for (element, value) in element_list.items():
+        for (element, value) in list(element_list.items()):
             try:
                 base_obj.__dict__[element] = merge_object_diff(base_obj.__dict__[element],
                                                                value,
@@ -728,7 +728,7 @@ def series_export_spreadsheet(matrix, matrix_answers, logo):
     sheet1 = book.add_sheet(T("Assessment"))
     sheet2 = book.add_sheet(T("Metadata"))
     max_col = 0
-    for cell in matrix.matrix.values():
+    for cell in list(matrix.matrix.values()):
         if cell.col + cell.mergeH > 255:
             current.log.warning("Cell (%s,%s) - (%s,%s) ignored" % \
                 (cell.col, cell.row, cell.col + cell.mergeH, cell.row + cell.mergeV))
@@ -785,7 +785,7 @@ def series_export_spreadsheet(matrix, matrix_answers, logo):
     sheet2.write(0, 1, "Response Count")
     sheet2.write(0, 2, "Values")
     sheet2.write(0, 3, "Cell Address")
-    for cell in matrix_answers.matrix.values():
+    for cell in list(matrix_answers.matrix.values()):
         style = merge_styles(style_list, cell.styleList)
         sheet2.write(cell.row,
                      cell.col,

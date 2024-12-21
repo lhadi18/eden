@@ -763,7 +763,7 @@ def acl_represent(acl, options):
 
     values = []
 
-    for o in options.keys():
+    for o in list(options.keys()):
         if o == 0 and acl == 0:
             values.append("%s" % options[o][0])
         elif acl and acl & o == o:
@@ -866,7 +866,7 @@ def portable():
             for filename in files:
                 if "web2py_source" in filename:
                     files_to_remove[filename] = os.stat(os.path.join(uploadfolder, filename)).st_mtime
-        sorted_files = sorted(files_to_remove.items(), key=itemgetter(1))
+        sorted_files = sorted(list(files_to_remove.items()), key=itemgetter(1))
         for i in range(0, len(sorted_files) - 1): # 1 indicates leave one file
             os.remove(os.path.join(uploadfolder, sorted_files[i][0]))
         web2py_source = sorted_files[len(sorted_files) - 1][0]
@@ -1436,7 +1436,7 @@ def result():
         overview = True
 
         links = UL()
-        for name, label in result_types.items():
+        for name, label in list(result_types.items()):
             link = LI(A(label,
                         _href = URL(c = "admin",
                                     f = "result",

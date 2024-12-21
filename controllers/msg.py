@@ -2360,7 +2360,7 @@ def readKeyGraph(queryID):
             l1 = s.split(":")[1]
             l2 = s.split(":")[2]
             try:
-                nodelabel[str(nodeid)] = unicode(l2.strip())
+                nodelabel[str(nodeid)] = str(l2.strip())
             except:
                 pass
         edges = int(next(f).split("KEYGRAPH_EDGES:")[1])
@@ -2369,7 +2369,7 @@ def readKeyGraph(queryID):
             s = next(f)
             n1 = s.split(" ")[0].strip()
             n2 = s.split(" ")[1].strip()
-            if (n1 in nodelabel.keys()) and (n2 in nodelabel.keys()):
+            if (n1 in list(nodelabel.keys())) and (n2 in list(nodelabel.keys())):
                 E.append((str(n1), str(n2)))
 
         next(f)
@@ -2385,7 +2385,7 @@ def readKeyGraph(queryID):
     from igraph import Graph, write_svg
     #g = nx.Graph()
     g = Graph()
-    g.add_vertices([ str(s) for s in nodelabel.keys()])
+    g.add_vertices([ str(s) for s in list(nodelabel.keys())])
     #g.add_nodes_from(nodelabel)
     g.add_edges(E)
     g.vs["name"] = list(nodelabel.values())

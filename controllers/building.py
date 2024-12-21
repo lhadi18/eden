@@ -875,7 +875,7 @@ def adminLevel():
             temp[parent] = [0, 0, 0, 0, 0, 0, 0, 1]
         temp[parent][damage - 1] += 1
     gis = {}
-    for (key) in temp.keys():
+    for (key) in list(temp.keys()):
         # raw SQL command
         # "select name, parent FROM gis_location WHERE gis_location.id = '%s'" % key
         row = ltable(key)
@@ -884,8 +884,8 @@ def adminLevel():
         else:
             gis[key] = row.name
 
-    for (key, item) in temp.items():
-        if gis.has_key(key):
+    for (key, item) in list(temp.items()):
+        if key in gis:
             name = gis[key]
         else:
             name = T("Unknown")

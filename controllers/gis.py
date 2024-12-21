@@ -3,6 +3,7 @@
 """
     GIS Controllers
 """
+from functools import reduce
 
 # Compact JSON encoding
 SEPARATORS = (",", ":")
@@ -318,7 +319,7 @@ def location():
         search_fields.append("name_alt.name_alt")
 
     filter_level_widgets = []
-    for level, level_label in location_hierarchy.items():
+    for level, level_label in list(location_hierarchy.items()):
         search_fields.append(level)
         hidden = False if level == "L0" else True
         filter_level_widgets.append(S3OptionsFilter(level,
@@ -4038,7 +4039,7 @@ def proxy():
                 length = int(request["wsgi"].environ["CONTENT_LENGTH"])
                 headers = {"Content-Type": request["wsgi"].environ["CONTENT_TYPE"]}
                 body = request.body.read(length)
-                r = urllib2.Request(url, body, headers)
+                r = urllib.request.Request(url, body, headers)
                 try:
                     y = urlopen(r)
                 except URLError:

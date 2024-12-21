@@ -226,7 +226,7 @@ if has_module("doc"):
             data = os.popen("strings " + filename).read()
 
         # The text needs to be in unicode or ascii, with no contol characters
-        data = str(unicode(data, errors="ignore"))
+        data = str(str(data, errors="ignore"))
         data = "".join(c if ord(c) >= 32 else " " for c in data)
 
         # Put the data according to the Multiple Fields
