@@ -130,30 +130,29 @@ class OrganisationModel(S3Model):
         #
         tablename = "org_organisation"
         self.define_table(tablename,
-                          self.super_link("pe_id", "pr_pentity"),
-                          Field("root_organisation", "reference org_organisation",
+                        self.super_link("pe_id", "pr_pentity"),
+                        Field("root_organisation", "reference org_organisation",
                                 ondelete = "CASCADE",
                                 readable = False,
                                 writable = False,
                                 represent = S3Represent(lookup="org_organisation"),
                                 ),
-                          Field("name", notnull=True,
-                                length=128, # Mayon Compatibility
-                                label = T("Name"),
-                                requires = [IS_NOT_EMPTY(),
-                                            IS_LENGTH(128),
-                                            ],
-                                ),
-                          # http://hxl.humanitarianresponse.info/#abbreviation
-                          Field("acronym", length=16,
+                        Field("name", notnull=True,
+                                length=128,
+                                label=T("Name"),
+                                requires=[IS_NOT_EMPTY(error_message=T("This field is required.")), IS_LENGTH(128, error_message=T("Maximum length is 128 characters."))],
+                                comment=DIV(_class="tooltip", _title="%s|%s" % (
+                                    T("Name"), T("Enter the full name of the organization. This is a required field."))
+                                )
+                            ),
+                        Field("acronym", length=16,
                                 label = T("Acronym"),
                                 represent = lambda val: val or "",
-                                requires = IS_LENGTH(16),
+                                requires = IS_LENGTH(16, error_message=T("Maximum length is 16 characters.")),
                                 comment = DIV(_class = "tooltip",
-                                              _title = "%s|%s" % (T("Acronym"),
-                                                                  T("Acronym of the organization's name, eg. IFRC.")
-                                                                  )
-                                              )
+                                            _title = "%s|%s" % (T("Acronym"),
+                                                                T("Acronym of the organization's name, e.g., IFRC."))
+                                            )
                                 ),
                           # Use org_organisation_tag:
                           #Field("registration", label = T("Registration")),    # Registration Number
@@ -162,10 +161,13 @@ class OrganisationModel(S3Model):
                                 represent = self.gis_country_code_represent,
                                 requires = IS_EMPTY_OR(IS_IN_SET_LAZY(
                                             lambda: gis.get_countries(key_type = "code"),
-                                            zero = messages.SELECT_LOCATION
-                                            )),
+                                            zero = messages.SELECT_LOCATION,
+                                            error_message=T("Invalid country code."))),
                                 readable = use_country,
                                 writable = use_country,
+                                comment=DIV(_class="tooltip",
+                                            _title="%s|%s" % (T("Home Country"), T("Select the country where the organization is based."))
+                                            )
                                 ),
                           # Simple free-text contact field, can be enabled
                           # in templates as needed
@@ -174,53 +176,54 @@ class OrganisationModel(S3Model):
                                 readable = False,
                                 writable = False,
                                 ),
-                          # @ToDo: Deprecate with Contact component
-                          Field("phone",
-                                label = T("Phone #"),
-                                represent = s3_phone_represent,
-                                requires = IS_EMPTY_OR(IS_PHONE_NUMBER_MULTI()),
-                                widget = S3PhoneWidget(),
-                                #readable = False,
-                                #writable = False,
-                                ),
-                          # http://hxl.humanitarianresponse.info/#organisationHomepage
-                          Field("website",
+                        Field("phone",
+                                label=T("Phone #"),
+                                represent=s3_phone_represent,
+                                requires=IS_EMPTY_OR(IS_PHONE_NUMBER_MULTI(error_message=T("Enter a valid phone number."))),
+                                widget=lambda f, v: S3PhoneWidget()(f, v, _placeholder=T("e.g., +1234567890")),
+                                comment=DIV(_class="tooltip", 
+                                            _title="%s|%s" % (
+                                                T("Phone #"), 
+                                                T("Enter the contact phone number. Use country code format, e.g., +1234567890."))
+                                )
+                            ),
+                        Field("website",
                                 label = T("Website"),
                                 represent = s3_url_represent,
                                 requires = IS_EMPTY_OR(IS_URL(allowed_schemes = ["http", "https", None],
-                                                              prepend_scheme = "http",
-                                                              )),
+                                                            prepend_scheme = "http",
+                                                            error_message=T("Enter a valid URL."))),
+                                comment=DIV(_class="tooltip",
+                                            _title="%s|%s" % (
+                                                T("Website"), 
+                                                T("Enter the official website URL of the organization."))
+                                            )
                                 ),
-                          # @ToDo: Deprecate little-used field from core model:
-                          Field("year", "integer",
+                        Field("year", "integer",
                                 label = T("Year"),
                                 represent = lambda v: v or NONE,
-                                requires = IS_EMPTY_OR(
-                                             IS_INT_IN_RANGE(1850, 2100)
-                                             ),
+                                requires = IS_EMPTY_OR(IS_INT_IN_RANGE(1850, 2100, error_message=T("Enter a valid year between 1850 and 2100."))),
                                 comment = DIV(_class = "tooltip",
-                                              _title = "%s|%s" % (T("Year"),
-                                                                  T("Year that the organization was founded")
-                                                                  ),
-                                              ),
+                                            _title = "%s|%s" % (T("Year"),
+                                                                T("Year that the organization was founded"))
+                                            ),
                                 ),
-                          Field("logo", "upload",
+                        Field("logo", "upload",
                                 label = T("Logo"),
                                 length = current.MAX_FILENAME_LENGTH,
                                 represent = self.doc_image_represent,
                                 requires = [IS_EMPTY_OR(IS_IMAGE(maxsize = (400, 400),
-                                                                 error_message = T("Upload an image file (png or jpeg), max. 400x400 pixels!"))),
-                                            IS_EMPTY_OR(IS_UPLOAD_FILENAME()),
+                                                                error_message = T("Upload an image file (png or jpeg), max. 400x400 pixels!"))),
+                                            IS_EMPTY_OR(IS_UPLOAD_FILENAME(error_message=T("Invalid file name."))),
                                             ],
                                 comment = DIV(_class = "tooltip",
-                                              _title = "%s|%s" % (T("Logo"),
-                                                                  T("Logo of the organization. This should be a png or jpeg file and it should be no larger than 400x400"),
-                                                                  ),
-                                              ),
+                                            _title = "%s|%s" % (T("Logo"),
+                                                                T("Logo of the organization. This should be a png or jpeg file and it should be no larger than 400x400."))
+                                            ),
                                 uploadfolder = os.path.join(current.request.folder, "uploads"),
                                 ),
-                          s3_comments(),
-                          *s3_meta_fields())
+                        s3_comments(),
+                        *s3_meta_fields())
 
         if settings.get_org_organisation_types_hierarchical():
             type_filter = S3HierarchyFilter("organisation_organisation_type.organisation_type_id",
@@ -1977,46 +1980,48 @@ class OrganisationResourceModel(S3Model):
         #
         tablename = "org_resource"
         self.define_table(tablename,
-                          # Instance
-                          super_link("data_id", "stats_data"),
-                          self.org_organisation_id(ondelete = "CASCADE"),
-                          # Consider adding this
-                          #self.super_link("site_id", "org_site",
-                          #                label = current.deployment_settings.get_org_site_label(),
-                          #                instance_types = auth.org_site_types,
-                          #                orderby = "org_site.name",
-                          #                realms = auth.permission.permitted_realms("org_site",
-                          #                                                          method="create"),
-                          #                not_filterby = "obsolete",
-                          #                not_filter_opts = (True,),
-                          #                readable = True,
-                          #                writable = True,
-                          #                represent = self.org_site_represent,
-                          #                ),
-                          self.gis_location_id(),
-                          # This is a component, so needs to be a super_link
-                          # - can't override field name, ondelete or requires
-                          super_link("parameter_id", "stats_parameter",
-                                     label = T("Resource Type"),
-                                     instance_types = ("org_resource_type",),
-                                     represent = S3Represent(lookup = "stats_parameter",
-                                                             translate = True,
-                                                             ),
-                                     readable = True,
-                                     writable = True,
-                                     empty = False,
-                                     comment = S3PopupLink(c = "org",
-                                                           f = "resource_type",
-                                                           vars = {"child": "parameter_id"},
-                                                           title = ADD_RESOURCE_TYPE,
-                                                           ),
-                                     ),
-                          Field("value", "integer",
-                                label = T("Quantity"),
-                                requires = IS_INT_IN_RANGE(0, None),
-                                ),
-                          s3_comments(),
-                          *s3_meta_fields())
+                  # Instance
+                  super_link("data_id", "stats_data"),
+                  self.org_organisation_id(ondelete="CASCADE"),
+                  # Consider adding this
+                  #self.super_link("site_id", "org_site",
+                  #                label = current.deployment_settings.get_org_site_label(),
+                  #                instance_types = auth.org_site_types,
+                  #                orderby = "org_site.name",
+                  #                realms = auth.permission.permitted_realms("org_site",
+                  #                                                          method="create"),
+                  #                not_filterby = "obsolete",
+                  #                not_filter_opts = (True,),
+                  #                readable = True,
+                  #                writable = True,
+                  #                represent = self.org_site_represent,
+                  #                ),
+                  self.gis_location_id(),
+                  # This is a component, so needs to be a super_link
+                  # - can't override field name, ondelete or requires
+                  super_link("parameter_id", "stats_parameter",
+                             label=T("Resource Type"),
+                             instance_types=("org_resource_type",),
+                             represent=S3Represent(lookup="stats_parameter",
+                                                   translate=True),
+                             readable=True,
+                             writable=True,
+                             empty=False,
+                             comment=S3PopupLink(c="org",
+                                                 f="resource_type",
+                                                 vars={"child": "parameter_id"},
+                                                 title=T("Add Resource Type")),
+                             ),
+                  Field("value", "integer",
+                        label=T("Quantity"),
+                        requires=IS_INT_IN_RANGE(0, None, error_message=T("Enter a valid quantity (greater than or equal to 0).")),
+                        comment=DIV(_class="tooltip", _title="%s|%s" % (
+                            T("Quantity"), T("Enter the quantity of the resource. Must be a non-negative integer.")
+                        ))
+                  ),
+                  s3_comments(),
+                  *s3_meta_fields()
+)
 
         # CRUD strings
         crud_strings[tablename] = Storage(
@@ -4582,74 +4587,104 @@ class FacilityModel(S3Model):
 
         tablename = "org_facility"
         define_table(tablename,
-                     # Instance
-                     super_link("doc_id", "doc_entity"),
-                     super_link("pe_id", "pr_pentity"),
-                     super_link("site_id", "org_site"),
-                     Field("name", notnull=True,
-                           length = 64, # Mayon Compatibility
-                           label = T("Name"),
-                           requires = [IS_NOT_EMPTY(),
-                                       IS_LENGTH(64),
-                                       ],
-                           ),
-                     Field("code", length=10, # Mayon compatibility
-                           #notnull=True,
-                           label = T("Code"),
-                           # Deployments that don't wants office codes can hide them
-                           #readable=False, writable=False,
-                           represent = lambda v: v or NONE,
-                           requires = code_requires,
-                           ),
-                     self.org_organisation_id(requires = org_organisation_requires(updateable = True),
-                                              ),
-                     self.gis_location_id(),
-                     Field("opening_times",
-                           label = T("Opening Times"),
-                           represent = lambda v: v or NONE,
-                           ),
-                     Field("contact",
-                           label = T("Contact"),
-                           represent = lambda v: v or NONE,
-                           ),
-                     Field("phone1",
-                           label = T("Phone 1"),
-                           represent = s3_phone_represent,
-                           requires = IS_EMPTY_OR(IS_PHONE_NUMBER_MULTI()),
-                           widget = S3PhoneWidget(),
-                           ),
-                     Field("phone2",
-                           label = T("Phone 2"),
-                           represent = s3_phone_represent,
-                           requires = IS_EMPTY_OR(IS_PHONE_NUMBER_MULTI()),
-                           widget = S3PhoneWidget(),
-                           ),
-                     Field("email",
-                           label = T("Email"),
-                           represent = lambda v: v or NONE,
-                           requires = IS_EMPTY_OR(IS_EMAIL()),
-                           ),
-                     Field("website",
-                           label = T("Website"),
-                           represent = lambda v: v or NONE,
-                           ),
-                     Field("obsolete", "boolean",
-                           default = False,
-                           label = T("Obsolete"),
-                           represent = lambda opt: current.messages.OBSOLETE if opt else NONE,
-                           readable = False,
-                           writable = False,
-                           ),
-                     Field("main_facility", "boolean",
-                           default = False,
-                           readable = False,
-                           writable = False,
-                           ),
-                     Field.Method("inv", org_site_has_inv),
-                     Field.Method("assets", org_site_has_assets),
-                     Field.Method("reqs", org_site_top_req_priority),
-                     s3_comments(),
-                     *s3_meta_fields())
+                    # Instance
+                    super_link("doc_id", "doc_entity"),
+                    super_link("pe_id", "pr_pentity"),
+                    super_link("site_id", "org_site"),
+                    Field("name", notnull=True,
+                        length=64,  # Mayon Compatibility
+                        label=T("Name"),
+                        requires=[IS_NOT_EMPTY(error_message=T("This field is required.")),
+                                    IS_LENGTH(64, error_message=T("Maximum length is 64 characters."))],
+                        comment=DIV(_class="tooltip", _title="%s|%s" % (
+                            T("Name"), T("Enter the name of the facility. This is a required field.")
+                        ))
+                    ),
+                    Field("code", length=10,  # Mayon compatibility
+                        label=T("Code"),
+                        represent=lambda v: v or NONE,
+                        requires=code_requires,
+                        comment=DIV(_class="tooltip", _title="%s|%s" % (
+                            T("Code"), T("Enter a unique code for the facility. This field may be optional depending on settings.")
+                        ))
+                    ),
+                    self.org_organisation_id(requires=org_organisation_requires(updateable=True),
+                                            comment=DIV(_class="tooltip", _title="%s|%s" % (
+                                                T("Organization"),
+                                                T("Select the organization associated with this facility. This field is required.")
+                                            ))
+                    ),
+                    self.gis_location_id(),
+                    Field("opening_times",
+                        label=T("Opening Times"),
+                        represent=lambda v: v or NONE,
+                        comment=DIV(_class="tooltip", _title="%s|%s" % (
+                            T("Opening Times"), T("Enter the operating hours for the facility. E.g., 9 AM - 5 PM.")
+                        ))
+                    ),
+                    Field("contact",
+                        label=T("Contact"),
+                        represent=lambda v: v or NONE,
+                        comment=DIV(_class="tooltip", _title="%s|%s" % (
+                            T("Contact"), T("Enter the primary contact person or department for the facility.")
+                        ))
+                    ),
+                    Field("phone1",
+                        label=T("Phone 1"),
+                        represent=s3_phone_represent,
+                        requires=IS_EMPTY_OR(IS_PHONE_NUMBER_MULTI(error_message=T("Enter a valid phone number."))),
+                        widget=S3PhoneWidget(),
+                        comment=DIV(_class="tooltip", _title="%s|%s" % (
+                            T("Phone 1"), T("Enter the primary phone number for the facility. Use country code format, e.g., +1234567890.")
+                        ))
+                    ),
+                    Field("phone2",
+                        label=T("Phone 2"),
+                        represent=s3_phone_represent,
+                        requires=IS_EMPTY_OR(IS_PHONE_NUMBER_MULTI(error_message=T("Enter a valid phone number."))),
+                        widget=S3PhoneWidget(),
+                        comment=DIV(_class="tooltip", _title="%s|%s" % (
+                            T("Phone 2"), T("Enter a secondary phone number for the facility. Use country code format, e.g., +1234567890.")
+                        ))
+                    ),
+                    Field("email",
+                        label=T("Email"),
+                        represent=lambda v: v or NONE,
+                        requires=IS_EMPTY_OR(IS_EMAIL(error_message=T("Enter a valid email address."))),
+                        comment=DIV(_class="tooltip", _title="%s|%s" % (
+                            T("Email"), T("Enter the contact email address for the facility.")
+                        ))
+                    ),
+                    Field("website",
+                        label=T("Website"),
+                        represent=lambda v: v or NONE,
+                        comment=DIV(_class="tooltip", _title="%s|%s" % (
+                            T("Website"), T("Enter the website address for the facility, if available.")
+                        ))
+                    ),
+                    Field("obsolete", "boolean",
+                        default=False,
+                        label=T("Obsolete"),
+                        represent=lambda opt: current.messages.OBSOLETE if opt else NONE,
+                        readable=False,
+                        writable=False,
+                        comment=DIV(_class="tooltip", _title="%s|%s" % (
+                            T("Obsolete"), T("Check this box if the facility is no longer in use or is obsolete.")
+                        ))
+                    ),
+                    Field("main_facility", "boolean",
+                        default=False,
+                        readable=False,
+                        writable=False,
+                        comment=DIV(_class="tooltip", _title="%s|%s" % (
+                            T("Main Facility"), T("Mark this as the main facility if it is the primary location for services.")
+                        ))
+                    ),
+                    Field.Method("inv", org_site_has_inv),
+                    Field.Method("assets", org_site_has_assets),
+                    Field.Method("reqs", org_site_top_req_priority),
+                    s3_comments(),
+                    *s3_meta_fields())
 
         # CRUD strings
         crud_strings[tablename] = Storage(
@@ -5221,65 +5256,86 @@ class OfficeModel(S3Model):
 
         tablename = "org_office"
         define_table(tablename,
-                     super_link("doc_id", "doc_entity"),
-                     super_link("pe_id", "pr_pentity"),
-                     super_link("site_id", "org_site"),
-                     Field("name", notnull=True,
-                           length=64, # Mayon Compatibility
-                           label = T("Name"),
-                           requires = [IS_NOT_EMPTY(),
-                                       IS_LENGTH(64),
-                                       ],
-                           ),
-                     Field("code", length=10, # Mayon compatibility
-                           label = T("Code"),
-                           # Deployments that don't wants office codes can hide them
-                           #readable=False,
-                           #writable=False,
-                           requires = code_requires,
-                           ),
-                     organisation_id(
-                         requires = org_organisation_requires(required = True,
-                                                              updateable = True,
-                                                              ),
-                         ),
-                     office_type_id(
-                                    #readable = False,
-                                    #writable = False,
-                                    ),
-                     self.gis_location_id(),
-                     Field("phone1",
-                           label = T("Phone 1"),
-                           represent = s3_phone_represent,
-                           requires = IS_EMPTY_OR(IS_PHONE_NUMBER_MULTI()),
-                           widget = S3PhoneWidget(),
-                           ),
-                     Field("phone2",
-                           label = T("Phone 2"),
-                           represent = s3_phone_represent,
-                           requires = IS_EMPTY_OR(IS_PHONE_NUMBER_MULTI()),
-                           widget = S3PhoneWidget(),
-                           ),
-                     Field("email",
-                           label = T("Email"),
-                           represent = lambda v: v or "",
-                           requires = IS_EMPTY_OR(IS_EMAIL()),
-                           ),
-                     Field("fax",
-                           label = T("Fax"),
-                           represent = s3_phone_represent,
-                           requires = IS_EMPTY_OR(IS_PHONE_NUMBER_MULTI()),
-                           widget = S3PhoneWidget(),
-                           ),
-                     Field("obsolete", "boolean",
-                           default = False,
-                           label = T("Obsolete"),
-                           represent = lambda opt: current.messages.OBSOLETE if opt else NONE,
-                           readable = False,
-                           writable = False,
-                           ),
-                     s3_comments(),
-                     *s3_meta_fields())
+             super_link("doc_id", "doc_entity"),
+             super_link("pe_id", "pr_pentity"),
+             super_link("site_id", "org_site"),
+             Field("name", notnull=True,
+                   length=64,  # Mayon Compatibility
+                   label=T("Name"),
+                   requires=[IS_NOT_EMPTY(error_message=T("This field is required.")),
+                             IS_LENGTH(64, error_message=T("Maximum length is 64 characters."))],
+                   comment=DIV(_class="tooltip", _title="%s|%s" % (
+                       T("Name"), T("Enter the name of the office. This is a required field."))
+                   )
+             ),
+             Field("code", length=10,  # Mayon compatibility
+                   label=T("Code"),
+                   requires=code_requires,
+                   comment=DIV(_class="tooltip", _title="%s|%s" % (
+                       T("Code"), T("Enter a unique code for the office. This field is optional depending on deployment settings."))
+                   )
+             ),
+             organisation_id(
+                 requires=org_organisation_requires(required=True, updateable=True),
+                 comment=DIV(_class="tooltip", _title="%s|%s" % (
+                     T("Organization"),
+                     T("Select the organization associated with this office. This field is required.")
+                 ))
+             ),
+             office_type_id(
+                 comment=DIV(_class="tooltip", _title="%s|%s" % (
+                     T("Office Type"), T("Select the type of this office. This field is required.")
+                 ))
+             ),
+             self.gis_location_id(),
+             Field("phone1",
+                   label=T("Phone 1"),
+                   represent=s3_phone_represent,
+                   requires=IS_EMPTY_OR(IS_PHONE_NUMBER_MULTI(error_message=T("Enter a valid phone number."))),
+                   widget=S3PhoneWidget(),
+                   comment=DIV(_class="tooltip", _title="%s|%s" % (
+                       T("Phone 1"), T("Enter the primary contact phone number for the office. Use country code format, e.g., +1234567890."))
+                   )
+             ),
+             Field("phone2",
+                   label=T("Phone 2"),
+                   represent=s3_phone_represent,
+                   requires=IS_EMPTY_OR(IS_PHONE_NUMBER_MULTI(error_message=T("Enter a valid phone number."))),
+                   widget=S3PhoneWidget(),
+                   comment=DIV(_class="tooltip", _title="%s|%s" % (
+                       T("Phone 2"), T("Enter a secondary phone number for the office. Use country code format, e.g., +1234567890."))
+                   )
+             ),
+             Field("email",
+                   label=T("Email"),
+                   represent=lambda v: v or "",
+                   requires=IS_EMPTY_OR(IS_EMAIL(error_message=T("Enter a valid email address."))),
+                   comment=DIV(_class="tooltip", _title="%s|%s" % (
+                       T("Email"), T("Enter the contact email address for the office."))
+                   )
+             ),
+             Field("fax",
+                   label=T("Fax"),
+                   represent=s3_phone_represent,
+                   requires=IS_EMPTY_OR(IS_PHONE_NUMBER_MULTI(error_message=T("Enter a valid fax number."))),
+                   widget=S3PhoneWidget(),
+                   comment=DIV(_class="tooltip", _title="%s|%s" % (
+                       T("Fax"), T("Enter the fax number for the office. Use country code format, e.g., +1234567890."))
+                   )
+             ),
+             Field("obsolete", "boolean",
+                   default=False,
+                   label=T("Obsolete"),
+                   represent=lambda opt: current.messages.OBSOLETE if opt else NONE,
+                   readable=False,
+                   writable=False,
+                   comment=DIV(_class="tooltip", _title="%s|%s" % (
+                       T("Obsolete"), T("Check this box if the office is obsolete and no longer in use.")
+                   ))
+             ),
+             s3_comments(),
+             *s3_meta_fields()
+)
 
         crud_fields = ["name",
                        "code",
