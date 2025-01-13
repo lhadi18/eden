@@ -35,6 +35,7 @@ __all__ = ("AuthConsentModel",
            "auth_consent_option_hash_fields",
            "auth_Consent",
            "auth_UserRepresent",
+           "AuthEventModel",
            )
 
 import datetime
@@ -578,6 +579,58 @@ class AuthUserTempModel(S3Model):
         #
         return None
 
+# =============================================================================
+class AuthEventModel(S3Model):
+    """
+        Model to store auth events
+    """
+
+    names = (current.auth.settings.table_event_name, )
+
+    def model(self):
+
+        utable = current.auth.settings.table_user
+
+        # Event table (auth_event)
+        # Records Logins & ?
+        # Deprecate?
+        # - date of most recent login is the most useful thing recorded, which we already record in the main auth_user table
+        request = current.request
+        settings = current.auth.settings
+        self.define_table(
+            settings.table_event_name,
+            Field("time_stamp", "datetime",
+                  default = request.utcnow,
+                  #label = messages.label_time_stamp
+                  ),
+            Field("client_ip",
+                  default = request.client,
+                  #label=messages.label_client_ip
+                  ),
+            Field("user_id", utable,
+                  default = None,
+                  requires = IS_IN_DB(current.db, "%s.id" % settings.table_user_name,
+                                      "%(id)s: %(first_name)s %(last_name)s"),
+                  #label=messages.label_user_id
+                  ),
+            Field("origin", length=512,
+                  default = "auth",
+                  #label = messages.label_origin,
+                  requires = IS_NOT_EMPTY(),
+                  ),
+            Field("description", "text",
+                  default = "",
+                  #label = messages.label_description,
+                  requires = IS_NOT_EMPTY(),
+                  ),
+            *S3MetaFields.sync_meta_fields())
+        settings.table_event = current.s3db[settings.table_event_name]
+
+        # ---------------------------------------------------------------------
+        # Pass names back to global scope (s3.*)
+        #
+        return {}
+    
 # =============================================================================
 class auth_Consent:
     """ Helper class to track consent """
