@@ -3,10 +3,10 @@
 # Table of Contents
 - [What is Sahana Eden?](#what-is-sahana-eden)
 - [Getting Started](#getting-started)
-- [How to Report a Bug or Request a Feature?](#how-to-report-a-bug-or-request-a-feature)
+- [Reporting Bugs](#reporting-bugs)
 - [Contribute](#contribute)
 - [Contact Us](#contact-us)
-- [Help Resources](#help-resources)
+
 
 # What is Sahana Eden?
 [Sahana Eden](https://eden.sahanafoundation.org/wiki/What) is an Open Source Humanitarian Platform which can be used to provide solutions for Disaster Management, Development, and Environmental Management sectors. It is supported by the [Sahana Software Foundation](http://sahanafoundation.org/).
@@ -28,21 +28,16 @@ We are actively working on resolving the issues with the end-user version to ens
 
 Before installing, please ensure you have the following softwares installed:
 - Python
-<br>
 ```html
     python --version
 ```
-<br>
 
 - Pip
-<br>
 ```html
     pip --version
 ```
-<br>
 
 - Git
-<br>
 ```html
     git --version
 ```
@@ -117,10 +112,6 @@ Delete or comment out the line: (`FINISHED_EDITING_CONFIG_FILE = False`)
    - Specify the template used for testing.
    - Include screenshots for clarity when necessary.
    - If you encounter a ticket, copy and paste the traceback into your report instead of just the ticket ID.
-
-4. **Contributors**: 
-   - Use appropriate labels when reporting bugs.
-   - Accept and indicate if you're working on fixing a bug.
 
 By following these guidelines, you ensure efficient communication and resolution of issues.
 
