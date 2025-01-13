@@ -3354,6 +3354,13 @@ class InventoryRequisitionModel(S3Model):
                                       #represent = "date",
                                       #widget = "date",
                                       ),
+                          s3_datetime("date_required_until",
+                                      label = T("Date Required Until"),
+                                      past = 0,
+                                      future = 8760,  # Hours, so 1 year
+                                      readable = True,
+                                      writable = True,
+                                      ),
                           req_priority()(),
                           # This is a component, so needs to be a super_link
                           # - can't override field name, ondelete or requires
@@ -3580,6 +3587,12 @@ class InventoryRequisitionModel(S3Model):
                          hide_time = True,
                          input_labels = {"ge": "From", "le": "To"},
                          comment = T("Search for requests required between these dates."),
+                         hidden = True,
+                         ),
+            S3DateFilter("date_required_until",
+                         hide_time = True,
+                         input_labels = {"ge": "From", "le": "To"},
+                         comment = T("Search for requests required until these dates."),
                          hidden = True,
                          ),
             ]
@@ -9823,23 +9836,32 @@ i18n.reg='%s'
                     # Filter Requests to those which are:
                     # - For Our Sites
                     # - Approved (or Open)
-                    sites = recvtable.site_id.requires.options(zero = False)
+                    sites = recvtable.site_id.requires.options(zero=False)
                     site_ids = [site[0] for site in sites]
+
+                    # Validate site_ids
+                    if not site_ids:
+                        raise HTTP(400, "No valid sites found for this operation.")
+
                     rtable = s3db.inv_req
                     ritable = s3db.inv_req_item
+
+                    # Build the query
                     if len(site_ids) > 1:
                         query = (rtable.site_id.belongs(site_ids))
                     else:
-                       query = (rtable.site_id == site_ids[0])
+                        query = (rtable.site_id == site_ids[0])
+
+                    # Add workflow or fulfillment status filter
                     if settings.get_inv_req_workflow():
-                        query &= (rtable.workflow_status == 3)
+                        query &= (rtable.workflow_status == 3)  # Approved
                     else:
                         query &= (rtable.fulfil_status.belongs((REQ_STATUS_NONE, REQ_STATUS_PARTIAL)))
-                    f = s3db.inv_recv_req.req_id 
-                    f.requires = IS_ONE_OF(db(query), "inv_req.id",
-                                           f.represent,
-                                           sort = True,
-                                           )
+
+                    # Configure the field requirements
+                    f = s3db.inv_recv_req.req_id
+                    f.requires = IS_ONE_OF(db(query), "inv_req.id", f.represent, sort=True)
+
             elif record:
                 transport_type = record.transport_type
                 if transport_type == "Air":
@@ -16899,6 +16921,19 @@ def inv_tabs(r):
         return tabs
 
     return []
+
+# =============================================================================
+def s3_include_simile():
+    """
+    Include the Simile timeline library.
+    """
+    from gluon import URL, current
+    s3 = current.response.s3
+
+    # Include Simile timeline scripts
+    s3.scripts.append(URL(c="static", f="scripts/simile/timeline-api.js"))
+    s3.scripts.append(URL(c="static", f="scripts/simile/simile-ajax-api.js"))
+
 
 # =============================================================================
 def inv_timeline(r, **attr):
