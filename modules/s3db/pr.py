@@ -792,7 +792,7 @@ class PersonModel(S3Model):
         # ---------------------------------------------------------------------
         # Person
         #
-        pr_gender_opts = {#1: "",
+        pr_gender_opts = {1: T("unknown"),
                           2: T("female"),
                           3: T("male"),
                           }
@@ -803,7 +803,7 @@ class PersonModel(S3Model):
             pr_gender_opts[4] = T("other")
 
         if not settings.get_pr_gender_required():
-            pr_gender_opts[1] = ""
+            pr_gender_opts[1] = "unknown"
 
         pr_gender = S3ReusableField("gender", "integer",
                                     default = 1,
@@ -8105,13 +8105,24 @@ def pr_nationality_opts():
 
     T = current.T
 
+    # Get the countries data
     countries = current.gis.get_countries(key_type="code")
-    opts = sorted(((k, T(countries[k])) for k in countries.keys()),
-                  # NB applies server locale's sorting rules, not
-                  #    the user's chosen language (not easily doable
-                  #    in Python, would require pyICU or similar)
-                  key=lambda x: s3_str(x[1]),
-                  )
+
+    # Check if countries is a dictionary
+    if isinstance(countries, dict):
+        opts = sorted(
+            ((k, T(countries[k])) for k in countries.keys()),
+            key=lambda x: s3_str(x[1]),  # Sort by the localized name
+        )
+    # Handle cases where countries is a list
+    elif isinstance(countries, list):
+        opts = sorted(
+            ((item, T(item)) for item in countries),
+            key=lambda x: s3_str(x[1]),
+        )
+    else:
+        # Raise an error if countries is neither dict nor list
+        raise TypeError("Unsupported data type for 'countries'")
 
     # Stateless always last
     opts.append(("XX", T("Stateless")))
@@ -10935,6 +10946,7 @@ class pr_PersonListLayout(S3DataListLayout):
     ICONS = {"date_of_birth": "calendar",
              "male": "male",
              "female": "female",
+             "unknown": "unknown",
              "nationality": "globe",
              "blood_type": "medical",
              }
@@ -11023,6 +11035,8 @@ class pr_PersonListLayout(S3DataListLayout):
                     icon = "female"
                 elif gender == 3:
                     icon = "male"
+                elif gender == 1:
+                    icon = "unknown"
                 # @todo: support "other" gender
                 #elif gender == 4:
                     #icon = ?

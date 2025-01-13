@@ -61,31 +61,65 @@ def index():
     def postp(r, output):
         if isinstance(output, dict):
             # Add information for Dashboard
+            
+            # Gender Calculation
             pr_gender_opts = s3db.pr_gender_opts
             table = db.pr_person
             gender = []
             for g_opt in pr_gender_opts:
-                query = (table.deleted == False) & \
-                        (table.gender == g_opt)
+                query = (table.deleted == False) & (table.gender == g_opt)
                 count = db(query).count()
                 gender.append([str(pr_gender_opts[g_opt]), int(count)])
 
-            pr_age_group_opts = s3db.pr_age_group_opts
-            dtable = db.pr_physical_description
-            age = []
-            for a_opt in pr_age_group_opts:
-                query = (table.deleted == False) & \
-                        (table.pe_id == dtable.pe_id) & \
-                        (dtable.age_group == a_opt)
-                count = db(query).count()
-                age.append([str(pr_age_group_opts[a_opt]), int(count)])
+            # Age Calculation from dob
+            age_groups_mapping = {
+                1: "unknown",
+                2: "Infant (0-1)",
+                3: "Child (2-11)",
+                4: "Adolescent (12-20)",
+                5: "Adult (21-50)",
+                6: "Senior (50+)"
+            }
+            today = datetime.date.today()
+            age_counts = {label: 0 for label in age_groups_mapping.values()}  # Initialize counts
+
+            # Fetch all records
+            records = db().select(table.date_of_birth, table.deleted)
+
+            for record in records:
+                if record.deleted:  # Skip deleted records
+                    continue
+
+                dob = record.date_of_birth
+                if not dob:  # If no date of birth, count as 'unknown'
+                    age_counts[age_groups_mapping[1]] += 1
+                    continue
+
+                # Calculate the person's age
+                age_person = today.year - dob.year
+                if today.month < dob.month or (today.month == dob.month and today.day < dob.day):
+                    age_person -= 1  # Adjust if the birthday hasn't occurred yet this year
+
+                # Determine the age group
+                for age_group, label in age_groups_mapping.items():
+                    if age_group == 1:  # Skip 'unknown' group
+                        continue
+                    min_age = (age_group - 2) * 10  # Adjust min and max age per group
+                    max_age = (age_group - 1) * 10 - 1
+                    if min_age <= age_person <= max_age:
+                        age_counts[label] += 1
+                        break
+
+            # Convert results to the desired format
+            age = [[label, count] for label, count in age_counts.items()]
+
 
             total = int(db(table.deleted == False).count())
-            output.update(module_name = module_name,
-                          gender = json.dumps(gender),
-                          age = json.dumps(age),
-                          total = total,
-                          )
+            output.update(module_name=module_name,
+                        gender=json.dumps(gender),
+                        age=json.dumps(age),
+                        total=total,
+                        )
         if r.interactive:
             if not r.component:
                 label = READ
@@ -93,13 +127,15 @@ def index():
                 label = UPDATE
             linkto = r.resource.crud._linkto(r)("[id]")
             s3.actions = [{"label": s3_str(label),
-                           "url": str(linkto),
-                           "_class": "action-btn",
-                           },
-                          ]
+                        "url": str(linkto),
+                        "_class": "action-btn",
+                        },
+                        ]
         r.next = None
         return output
+
     s3.postp = postp
+
 
     output = s3_rest_controller("pr", "person")
     response.view = "pr/index.html"
