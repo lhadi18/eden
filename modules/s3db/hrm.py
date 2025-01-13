@@ -2714,7 +2714,7 @@ class HRSkillModel(S3Model):
                            writable = event_types,
                            ),
                      course_id(empty = not course_mandatory),
-                     organisation_id(label = T("Organized By")),
+                     organisation_id(label = T("Organizer")),
                      location_id(widget = S3LocationSelector(), # show_address = False
                                  readable = not event_site,
                                  writable = not event_site,
@@ -4791,14 +4791,14 @@ class HRProgrammeModel(S3Model):
         tablename = "hrm_programme"
         define_table(tablename,
                      Field("name", notnull=True, length=64,
-                           label = T("Name"),
+                           label = T("Abbreviation / Acronym"),
                            represent = T,
                            requires = [IS_NOT_EMPTY(),
                                        IS_LENGTH(64),
                                        ],
                            ),
                      Field("name_long",
-                           label = T("Long Name"),
+                           label = T("Full Name"),
                            ),
                      # Only included in order to be able to set
                      # realm_entity to filter appropriately

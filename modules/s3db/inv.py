@@ -412,12 +412,12 @@ class WarehouseModel(S3Model):
                            represent = lambda v: v or NONE,
                            ),
                      Field("phone1",
-                           label = T("Phone"),
+                           label = T("Phone No 1"),
                            represent = lambda v: v or NONE,
                            requires = IS_EMPTY_OR(IS_PHONE_NUMBER_MULTI())
                            ),
                      Field("phone2",
-                           label = T("Phone 2"),
+                           label = T("Phone No 2"),
                            represent = lambda v: v or NONE,
                            requires = IS_EMPTY_OR(IS_PHONE_NUMBER_MULTI())
                            ),
@@ -577,9 +577,9 @@ class InventoryModel(S3Model):
         WAREHOUSE = T(settings.get_inv_facility_label())
 
         if settings.get_org_branches():
-            owner_org_id_label = T("Owned By (Organization/Branch)")
+            owner_org_id_label = T("Organization / Branch")
         else:
-            owner_org_id_label = T("Owned By Organization")
+            owner_org_id_label = T("Organization")
 
         inv_source_type = {0: None,
                            1: T("Donated"),
@@ -667,7 +667,7 @@ class InventoryModel(S3Model):
                                      ),
                      # Original donating Organisation
                      organisation_id("supply_org_id",
-                                     label = T("Supplier/Donor"),
+                                     label = T("Supplier / Donor"),
                                      ondelete = "SET NULL",
                                      ),
                      Field("source_type", "integer",
@@ -1159,7 +1159,7 @@ class InventoryAdjustModel(S3Model):
         define_table(tablename,
                      super_link("doc_id", "doc_entity"),
                      self.pr_person_id(name = "adjuster_id",
-                                       label = T("Actioning officer"),
+                                       label = T("Actioning Officer"),
                                        ondelete = "RESTRICT",
                                        default = auth.s3_logged_in_person(),
                                        comment = self.pr_person_comment(child = "adjuster_id")
@@ -1611,7 +1611,7 @@ class InventoryCommitModel(S3Model):
         if settings.get_org_site_autocomplete():
             site_widget = S3SiteAutocompleteWidget()
             site_comment = DIV(_class = "tooltip",
-                               _title = "%s|%s" % (T("From Facility"),
+                               _title = "%s|%s" % (T("Facility (Sender)"),
                                                    current.messages.AUTOCOMPLETE_HELP,
                                                    ),
                                )
@@ -1627,7 +1627,7 @@ class InventoryCommitModel(S3Model):
                           self.super_link("site_id", "org_site",
                                           comment = site_comment,
                                           default = site_default,
-                                          label = T("From Facility"),
+                                          label = T("Facility (Sender)"),
                                           # Non-Item Requests make False in the prep
                                           readable = True,
                                           writable = True,
@@ -4866,7 +4866,7 @@ class InventoryStockCardModel(S3Model):
                                               ),
                      inv_itn_field()(),
                      self.org_organisation_id("supply_org_id",
-                                              label = T("Supplier/Donor"),
+                                              label = T("Supplier / Donor"),
                                               ondelete = "SET NULL",
                                               ),
                      s3_date("expiry_date",
@@ -5169,11 +5169,11 @@ class InventoryTrackingModel(S3Model):
                                          ),
                            ),
                      Field("driver_name",
-                           label = T("Name of Driver"),
+                           label = T("Driver Name"),
                            represent = string_represent,
                            ),
                      Field("driver_phone",
-                           label = T("Driver Phone Number"),
+                           label = T("Driver Phone No"),
                            represent = lambda v: v or "",
                            requires = IS_EMPTY_OR(IS_PHONE_NUMBER_MULTI()),
                            ),
@@ -5461,7 +5461,7 @@ class InventoryTrackingModel(S3Model):
                            requires = IS_IN_SET(recv_type_opts,
                                                 zero = None),
                            ),
-                     organisation_id(label = T("Organization/Supplier"), # From Organization/Supplier
+                     organisation_id(label = T("Organization / Supplier"), # From Organization/Supplier
                                      ),
                      # This is a reference, not a super_link, so we can override
                      Field("from_site_id", "reference org_site",
@@ -5825,12 +5825,12 @@ class InventoryTrackingModel(S3Model):
                      inv_itn_field()(),
                      # Organisation which originally supplied/donated item(s)
                      organisation_id("supply_org_id",
-                                     label = T("Supplier/Donor"),
+                                     label = T("Supplier / Donor"),
                                      ondelete = "SET NULL",
                                      ),
                      # Organisation that owns item(s)
                      organisation_id("owner_org_id",
-                                     label = T("Owned By (Organization/Branch)"),
+                                     label = T("Organization / Branch"),
                                      ondelete = "SET NULL",
                                      ),
                      Field("inv_item_status", "integer",

@@ -205,7 +205,7 @@ class LocationModel(S3Model):
                   ),
             Field("inherited", "boolean",
                   default = False,
-                  label = T("Mapped?"),
+                  label = T("Mapped"),
                   represent = lambda v: T("No") if v else T("Yes"), # inverse of s3_yes_no_represent
                   writable = False,
                   ),
@@ -5066,7 +5066,7 @@ def gis_config_form_setup():
                                                  ),
                              )
     field = table.pe_id
-    field.label = T("Person or OU")
+    field.label = T("Person / OU")
     field.readable = field.writable = True
     field.represent = current.s3db.pr_PersonEntityRepresent(show_label = False)
     # Maps can be assigned to a Person, Group or Organisation(/Branch)

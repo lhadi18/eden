@@ -807,7 +807,7 @@ class PersonModel(S3Model):
 
         pr_gender = S3ReusableField("gender", "integer",
                                     default = 1,
-                                    label = T("Sex"),
+                                    label = T("Gender"),
                                     represent = s3_options_represent(pr_gender_opts),
                                     requires = IS_PERSON_GENDER(pr_gender_opts,
                                                                 sort = True,
