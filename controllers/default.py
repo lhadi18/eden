@@ -7,83 +7,110 @@
 # -----------------------------------------------------------------------------
 def index():
     """
-        Main Home Page
+    Main Home Page
     """
-
+    
+    # Setup authentication, user fields, and menu
     auth.settings.register_onvalidation = _register_validation
     auth.configure_user_fields()
-
     current.menu.oauth = S3MainMenu.menu_oauth()
 
-    page = None
-    if len(request.args):
-        # Use the first non-numeric argument as page name
-        # (RESTful custom controllers may have record IDs in Ajax URLs)
-        for arg in request.args:
-            pname = arg.split(".", 1)[0] if "." in arg else arg
-            if not pname.isdigit():
-                page = pname
-                break
+    # Process the request to check if it's for a custom page
+    page = _get_custom_page(request.args)
 
-    # Module name for custom controllers
-    name = "controllers"
-
+    # Check for custom controllers or homepages
     custom = None
     templates = settings.get_template()
+    custom = _load_custom_controller(page, templates)
 
-    if page:
-        # Go to a custom page,
-        # - args[0] = name of the class in /modules/templates/<template>/controllers.py
-        # - other args & vars passed through
-        if not isinstance(templates, (tuple, list)):
-            templates = (templates,)
-        for template in templates[::-1]:
-            package = "applications.%s.modules.templates.%s" % (appname, template)
-            try:
-                custom = getattr(__import__(package, fromlist = [name]), name)
-            except (ImportError, AttributeError):
-                # No Custom Page available, continue with the default
-                #page = "modules/templates/%s/controllers.py" % template
-                #current.log.warning("File not loadable",
-                #                    "%s, %s" % (page, sys.exc_info()[1]))
-                continue
+    if custom:
+        # If a custom controller is found, return its output
+        return custom
+
+    # Otherwise, load the default homepage content
+    return _default_homepage_content()
+
+
+def _get_custom_page(args):
+    """Helper function to extract custom page name from request arguments."""
+    for arg in args:
+        pname = arg.split(".", 1)[0] if "." in arg else arg
+        if not pname.isdigit():
+            return pname
+    return None
+
+
+def _load_custom_controller(page, templates):
+    """Load the custom controller based on the page name and templates."""
+    name = "controllers"
+    
+    if not isinstance(templates, (tuple, list)):
+        templates = (templates,)
+
+    # Iterate through templates in reverse order to find the custom controller
+    for template in templates[::-1]:
+        package = f"applications.{appname}.modules.templates.{template}"
+        try:
+            custom = getattr(__import__(package, fromlist=[name]), name)
+        except (ImportError, AttributeError):
+            # Custom controller not found, log and continue
+            current.log.warning(f"Custom page {template} not found. Continuing...")
+            continue
+        else:
+            if hasattr(custom, page):
+                controller = getattr(custom, page)()
+            elif page != "login":
+                raise HTTP(404, f"Function not found: {page}()")
             else:
-                if hasattr(custom, page):
-                    controller = getattr(custom, page)()
-                elif page != "login":
-                    raise HTTP(404, "Function not found: %s()" % page)
-                else:
-                    controller = custom.index()
-                output = controller()
-                return output
+                controller = custom.index()
+            return controller()
 
-    elif templates != "default":
-        # Try a Custom Homepage
-        if not isinstance(templates, (tuple, list)):
-            templates = (templates,)
-        for template in templates[::-1]:
-            package = "applications.%s.modules.templates.%s" % (appname, template)
-            try:
-                custom = getattr(__import__(package, fromlist = [name]), name)
-            except (ImportError, AttributeError):
-                # No Custom Page available, continue with the next option, or default
-                # @ToDo: cache this result in session
-                #import sys
-                #current.log.warning("Custom homepage cannot be loaded",
-                                    #sys.exc_info()[1])
-                continue
-            else:
-                if hasattr(custom, "index"):
-                    output = custom.index()()
-                    return output
+    # If no custom controller was found, return None
+    return None
 
-    # Default Homepage
+
+def _default_homepage_content():
+    """Return the default homepage content."""
     title = settings.get_system_name()
     response.title = title
 
-    # CMS Contents for homepage
-    item = ""
-    #has_module = settings.has_module
+    # CMS contents for the homepage
+    item = _get_cms_homepage_content()
+
+    # Generate homepage menu
+    sit_menu = _get_situation_awareness_menu()
+    org_menu = _get_organization_menu()
+    res_menu = _get_resource_management_menu()
+    aid_menu = _get_aid_management_menu()
+
+    # User roles and permissions
+    manage_facility_box, org_box, datatable_ajax_source = _get_facility_management_box()
+
+    # Login/Registration forms
+    login_div, login_form, register_div, register_form = _get_login_registration_forms()
+
+    return {
+        "title": title,
+        "item": item,
+        "sit_menu": sit_menu,
+        "org_menu": org_menu,
+        "res_menu": res_menu,
+        "aid_menu": aid_menu,
+        "manage_facility_box": manage_facility_box,
+        "org_box": org_box,
+        "login_div": login_div,
+        "login_form": login_form,
+        "register_div": register_div,
+        "register_form": register_form,
+        "self_registration": settings.get_security_registration_visible(),
+        "registered": "registered" in request.cookies,
+        "r": None,
+        "datatable_ajax_source": datatable_ajax_source,
+    }
+
+
+def _get_cms_homepage_content():
+    """Get CMS content for the homepage."""
     if settings.has_module("cms"):
         table = s3db.cms_post
         ltable = s3db.cms_post_module
@@ -91,220 +118,143 @@ def index():
                 ((ltable.resource == None) | (ltable.resource == "index")) & \
                 (ltable.post_id == table.id) & \
                 (table.deleted != True)
-        item = db(query).select(table.body,
-                                limitby = (0, 1)
-                                ).first()
+        item = db(query).select(table.body, limitby=(0, 1)).first()
         if item:
-            item = DIV(XML(item.body))
-        else:
-            item = ""
+            return DIV(XML(item.body))
+    return ""
 
-    # Menu boxes
+
+def _get_situation_awareness_menu():
+    """Return the Situation Awareness menu."""
     from s3layouts import S3HomepageMenuLayout as HM
-
-    sit_menu = HM("Situation Awareness")(
+    return HM("Situation Awareness")(
         HM("Map", c="gis", f="index", icon="map-marker"),
         HM("Incidents", c="event", f="incident_report", icon="incident"),
         HM("Alerts", c="cap", f="alert", icon="alert"),
         HM("Assessments", c="survey", f="series", icon="assessment"),
     )
-    org_menu = HM("Who is doing What and Where")(
+
+
+def _get_organization_menu():
+    """Return the Who is doing What and Where menu."""
+    from s3layouts import S3HomepageMenuLayout as HM
+    return HM("Who is doing What and Where")(
         HM("Organizations", c="org", f="organisation", icon="organisation"),
         HM("Facilities", c="org", f="facility", icon="facility"),
         HM("Activities", c="project", f="activity", icon="activity"),
         HM("Projects", c="project", f="project", icon="project"),
     )
-    res_menu = HM("Manage Resources")(
+
+
+def _get_resource_management_menu():
+    """Return the Resource Management menu."""
+    from s3layouts import S3HomepageMenuLayout as HM
+    return HM("Manage Resources")(
         HM("Staff", c="hrm", f="staff", t="hrm_human_resource", icon="staff"),
         HM("Volunteers", c="vol", f="volunteer", t="hrm_human_resource", icon="volunteer"),
         HM("Relief Goods", c="inv", f="inv_item", icon="goods"),
         HM("Assets", c="asset", f="asset", icon="asset"),
     )
-    aid_menu = HM("Manage Aid")(
+
+
+def _get_aid_management_menu():
+    """Return the Aid Management menu."""
+    from s3layouts import S3HomepageMenuLayout as HM
+    return HM("Manage Aid")(
         HM("Requests", c="req", f="req", icon="request"),
         HM("Commitments", c="req", f="commit", icon="commit"),
         HM("Sent Shipments", c="inv", f="send", icon="shipment"),
         HM("Received Shipments", c="inv", f="recv", icon="delivery"),
     )
 
-    # @todo: re-integrate or deprecate (?)
-    #if has_module("cr"):
-    #    table = s3db.cr_shelter
-    #    SHELTERS = s3.crud_strings["cr_shelter"].title_list
-    #else:
-    #    SHELTERS = ""
-    #facility_box = HM("Facilities", _id="facility_box")(
-    #    HM("Facilities", c="org", f="facility"),
-    #    HM("Hospitals", c="med", f="hospital"),
-    #    HM("Offices", c="org", f="office"),
-    #    HM(SHELTERS, c="cr", f="shelter"),
-    #    HM("Warehouses", c="inv", f="warehouse"),
-    #    HM("Map", c="gis", f="index",
-    #       icon="/%s/static/img/map_icon_128.png" % appname,
-    #       ),
-    #)
 
-    # Check logged in AND permissions
+def _get_facility_management_box():
+    """Return facility management box and organization data table source."""
     roles = session.s3.roles
     table = s3db.org_organisation
     has_permission = auth.s3_has_permission
     AUTHENTICATED = auth.get_system_roles().AUTHENTICATED
+    
     if AUTHENTICATED in roles and has_permission("read", table):
-
         org_items = organisation()
-        datatable_ajax_source = "/%s/default/organisation.aadata" % appname
-
-        # List of Organisations
+        datatable_ajax_source = f"/{appname}/default/organisation.aadata"
+        create = ""
         if has_permission("create", table):
             create = A(T("Create Organization"),
-                       _href = URL(c = "org",
-                                   f = "organisation",
-                                   args = ["create"],
-                                   ),
-                       _id = "add-org-btn",
-                       _class = "action-btn",
-                       )
-        else:
-            create = ""
-        org_box = DIV(create,
-                      H3(T("Organizations")),
-                      org_items,
-                      _id = "org-box",
-                      _class = "menu-box"
-                      )
+                       _href=URL(c="org", f="organisation", args=["create"]),
+                       _id="add-org-btn", _class="action-btn")
+        org_box = DIV(create, H3(T("Organizations")), org_items, _id="org-box", _class="menu-box")
 
-        s3.actions = None
-        response.view = "default/index.html"
-
-        # Quick Access Box for Sites
-        permission = auth.permission
-        permission.controller = "org"
-        permission.function = "site"
-        permitted_facilities = auth.permitted_facilities(redirect_on_error = False)
-
+        permitted_facilities = auth.permitted_facilities(redirect_on_error=False)
         if permitted_facilities:
-            facilities = s3db.org_SiteRepresent().bulk(permitted_facilities,
-                                                       include_blank = False,
-                                                       )
+            facilities = s3db.org_SiteRepresent().bulk(permitted_facilities, include_blank=False)
             facility_list = [(fac, facilities[fac]) for fac in facilities]
             facility_list = sorted(facility_list, key=lambda fac: fac[1])
-            facility_opts = [OPTION(fac[1], _value=fac[0])
-                             for fac in facility_list]
-
-            manage_facility_box = DIV(H3(T("Manage Your Facilities")),
-                                      SELECT(_id = "manage-facility-select",
-                                             *facility_opts
-                                             ),
-                                      A(T("Go"),
-                                        _href = URL(c="default", f="site",
-                                                    args=[facility_list[0][0]],
-                                                    ),
-                                        _id = "manage-facility-btn",
-                                        _class = "action-btn"
-                                        ),
-                                      _id = "manage-facility-box",
-                                      _class = "menu-box"
-                                      )
-
+            facility_opts = [OPTION(fac[1], _value=fac[0]) for fac in facility_list]
+            manage_facility_box = DIV(
+                H3(T("Manage Your Facilities")),
+                SELECT(_id="manage-facility-select", *facility_opts),
+                A(T("Go"), _href=URL(c="default", f="site", args=[facility_list[0][0]]),
+                  _id="manage-facility-btn", _class="action-btn"),
+                _id="manage-facility-box", _class="menu-box"
+            )
             s3.jquery_ready.append('''$('#manage-facility-select').on('change',function(){
  $('#manage-facility-btn').attr('href',S3.Ap.concat('/default/site/',$('#manage-facility-select').val()))})
 $('#manage-facility-btn').on('click',function(){
 if (($('#manage-facility-btn').attr('href').toString())===S3.Ap.concat('/default/site/None'))
 {$("#manage-facility-box").append("<div class='alert alert-error'>%s</div>")
 return false}})''' % (T("Please Select a Facility")))
-
         else:
             manage_facility_box = ""
-
     else:
-        datatable_ajax_source = ""
         manage_facility_box = ""
         org_box = ""
+        datatable_ajax_source = ""
 
-    # Login/Registration forms
+    return manage_facility_box, org_box, datatable_ajax_source
+
+
+def _get_login_registration_forms():
+    """Return login and registration forms and related HTML."""
+    AUTHENTICATED = auth.get_system_roles().AUTHENTICATED
+    roles = session.s3.roles
     self_registration = settings.get_security_registration_visible()
     registered = False
     login_form = None
     login_div = None
     register_form = None
     register_div = None
+
     if AUTHENTICATED not in roles:
-        # This user isn't yet logged-in
         if "registered" in request.cookies:
-            # This browser has logged-in before
             registered = True
 
-        # Provide a login box on front page
         auth.messages.submit_button = T("Login")
-        login_form = auth.login(inline = True)
+        login_form = auth.login(inline=True)
         login_div = DIV(H3(T("Login")),
-                        P(XML(T("Registered users can %(login)s to access the system") % \
-                              {"login": B(T("login"))})))
+                        P(XML(T("Registered users can %(login)s to access the system") % {"login": B(T("login"))})))
 
         if self_registration:
-            # Provide a Registration box on front page
             register_form = auth.register()
             register_div = DIV(H3(T("Register")),
-                               P(XML(T("If you would like to help, then please %(sign_up_now)s") % \
-                                        {"sign_up_now": B(T("sign-up now"))})))
+                               P(XML(T("If you would like to help, then please %(sign_up_now)s") % {"sign_up_now": B(T("sign-up now"))})))
 
             if request.env.request_method == "POST":
-                if login_form.errors:
-                    hide, show = "#register_form", "#login_form"
-                else:
-                    hide, show = "#login_form", "#register_form"
-                post_script = \
-'''$('%s').addClass('hide')
-$('%s').removeClass('hide')''' % (hide, show)
+                hide, show = ("#register_form", "#login_form") if login_form.errors else ("#login_form", "#register_form")
+                post_script = f"$('{hide}').addClass('hide'); $('{show}').removeClass('hide')"
             else:
                 post_script = ""
-            register_script = \
-'''$('#register-btn').attr('href','#register')
+
+            register_script = f'''
+$('#register-btn').attr('href','#register')
 $('#login-btn').attr('href','#login')
-%s
-$('#register-btn').click(function(){
- $('#register_form').removeClass('hide')
- $('#login_form').addClass('hide')
-})
-$('#login-btn').click(function(){
- $('#register_form').addClass('hide')
- $('#login_form').removeClass('hide')
-})''' % post_script
+{post_script}
+$('#register-btn').click(function(){{$('#register_form').removeClass('hide'); $('#login_form').addClass('hide');}})
+$('#login-btn').click(function(){{$('#register_form').addClass('hide'); $('#login_form').removeClass('hide');}})'''
             s3.jquery_ready.append(register_script)
 
-    # Output dict for the view
-    output = {"title": title,
+    return login_div, login_form, register_div, register_form
 
-              # CMS Contents
-              "item": item,
-
-              # Menus
-              "sit_menu": sit_menu,
-              "org_menu": org_menu,
-              "res_menu": res_menu,
-              "aid_menu": aid_menu,
-              #"facility_box": facility_box,
-
-              # Quick Access Boxes
-              "manage_facility_box": manage_facility_box,
-              "org_box": org_box,
-
-              # Login Form
-              "login_div": login_div,
-              "login_form": login_form,
-
-              # Registration Form
-              "register_div": register_div,
-              "register_form": register_form,
-
-              # Control Data
-              "self_registration": self_registration,
-              "registered": registered,
-              "r": None, # Required for dataTable to work
-              "datatable_ajax_source": datatable_ajax_source,
-              }
-
-    return output
 
 # -----------------------------------------------------------------------------
 def about():
@@ -1377,11 +1327,20 @@ def tos():
     return {}
 
 # -----------------------------------------------------------------------------
+import random
+from gluon.validators import IS_INT_IN_RANGE  # Import the IS_INT_IN_RANGE validator
+
 def user():
     """ Auth functions based on arg. See gluon/tools.py """
 
     auth_settings = auth.settings
     utable = auth_settings.table_user
+    
+    num1 = random.randint(1, 10)
+    num2 = random.randint(1, 10)
+    captcha_answer = num1 + num2  # The correct answer to the math question
+    session.captcha_answer = captcha_answer  # Store the answer in the session
+
 
     arg = request.args(0)
     if arg == "verify_email":
@@ -1403,7 +1362,7 @@ def user():
     # Check for template-specific customisations
     customise = settings.customise_auth_user_controller
     if customise:
-        customise(arg = arg)
+        customise(arg=arg)
 
     self_registration = settings.get_security_self_registration()
     login_form = register_form = None
@@ -1412,22 +1371,17 @@ def user():
 
     if not settings.get_auth_password_changes():
         # Block Password changes as these are managed externally (OpenID / SMTP / LDAP)
-        auth_settings.actions_disabled = ("change_password",
-                                          "retrieve_password",
-                                          )
+        auth_settings.actions_disabled = ("change_password", "retrieve_password")
     elif not settings.get_auth_password_retrieval():
         # Block password retrieval
-        auth_settings.actions_disabled = ("retrieve_password",
-                                          )
+        auth_settings.actions_disabled = ("retrieve_password",)
 
     header = response.s3_user_header or ""
 
     if arg == "login":
         title = response.title = T("Login")
-        # @ToDo: move this code to /modules/s3/s3aaa.py:def login()?
         auth.messages.submit_button = T("Login")
         form = auth()
-        #form = auth.login()
         login_form = form
 
     elif arg == "register":
@@ -1435,39 +1389,29 @@ def user():
         if not self_registration:
             session.error = T("Registration not permitted")
             redirect(URL(f="index"))
-        if response.title:
-            # Customised
-            title = response.title
-        else:
-            # Default
-            title = response.title = T("Register")
-        form = register_form = auth.register()
+        title = response.title = T("Register")
+
+        # Add the math question to the form
+        form = auth.register()
+        form.append(TR(T(f"What is {num1} + {num2}?"), TD(INPUT(_name="captcha_answer", requires=IS_INT_IN_RANGE(-9999999, 9999999)))))
+
+        # Process the form and validate the CAPTCHA
+        if form.process(onvalidation=_register_validation).accepted:
+            response.flash = f"Debug: Captcha answer is {captcha_user_answer}"
+            # Validate the CAPTCHA answer
+            if int(captcha_user_answer) != session.captcha_answer:
+                form.errors['captcha_answer'] = T("Incorrect CAPTCHA answer. Please try again.")
+                response.flash = T("Form has errors.")
+            else:
+                response.flash = T("Registration successful.")
+        elif form.errors:
+            response.flash = T("Form has errors.")
+
+        register_form = form
 
     elif arg == "change_password":
         title = response.title = T("Change Password")
         form = auth()
-        # Add client-side validation
-        js_global = []
-        js_append = js_global.append
-        js_append('''S3.password_min_length=%i''' % settings.get_auth_password_min_length())
-        js_append('''i18n.password_min_chars="%s"''' % T("You must enter a minimum of %d characters"))
-        js_append('''i18n.weak="%s"''' % T("Weak"))
-        js_append('''i18n.normal="%s"''' % T("Normal"))
-        js_append('''i18n.medium="%s"''' % T("Medium"))
-        js_append('''i18n.strong="%s"''' % T("Strong"))
-        js_append('''i18n.very_strong="%s"''' % T("Very Strong"))
-        script = '''\n'''.join(js_global)
-        s3.js_global.append(script)
-        if s3.debug:
-            s3.scripts.append("/%s/static/scripts/jquery.pstrength.2.1.0.js" % appname)
-        else:
-            s3.scripts.append("/%s/static/scripts/jquery.pstrength.2.1.0.min.js" % appname)
-        s3.jquery_ready.append(
-'''$('.password:eq(1)').pstrength({
- 'minChar': S3.password_min_length,
- 'minCharText': i18n.password_min_chars,
- 'verdicts': [i18n.weak, i18n.normal, i18n.medium, i18n.strong, i18n.very_strong]
-})''')
 
     elif arg == "retrieve_password":
         title = response.title = T("Lost Password")
@@ -1482,7 +1426,6 @@ def user():
         form = auth.consent()
 
     elif arg == "options.s3json":
-        # Used when adding organisations from registration form
         return s3_rest_controller(prefix="auth", resourcename="user")
 
     else:
@@ -1496,7 +1439,6 @@ def user():
 
     templates = settings.get_template()
     if templates != "default":
-        # Try a Custom View
         folder = request.folder
         if not isinstance(templates, (tuple, list)):
             templates = (templates,)
@@ -1509,7 +1451,6 @@ def user():
                                 "user.html")
             if os.path.exists(view):
                 try:
-                    # Pass view as file not str to work in compiled mode
                     response.view = open(view, "rb")
                 except IOError:
                     from gluon.http import HTTP
