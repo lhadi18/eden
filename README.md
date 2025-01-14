@@ -43,7 +43,7 @@ Before installing, please ensure you have the following softwares installed:
 ```
 <br>
 
-## Installation
+## Installation (Windows & Mac)
 ### 1. Install Web2py
 
 Clone the Web2py Repository by running this command in your terminal:
