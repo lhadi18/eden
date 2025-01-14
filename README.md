@@ -52,29 +52,27 @@ Clone the Web2py Repository by running this command in your terminal:
 ```
 
 
-### 2. Unzip the zip files 
-
-### 3. Install the required packages
+### 2. Install the required packages
 ```html
     pip install lxml reportlab shapely xlrd xlwt python-dateutil
 ```
 
-### 4. Navigate to the applications directory
+### 3. Navigate to the applications directory
 ```html
     cd web2py/applications
 ```
 
-### 5. Clone the Sahana Eden Repository
+### 4. Clone the Sahana Eden Repository
 ```html
     git clone https://github.com/sahana/eden.git
 ```
 
-### 6. Navigate to the web2py directory
+### 5. Navigate to the web2py directory
 ```html
     cd ..
 ```
 
-### 7. Run the web2py.py 
+### 6. Run the web2py.py 
 ```html
     python web2py.py
 ```
@@ -82,7 +80,8 @@ Clone the Web2py Repository by running this command in your terminal:
 
 ## Configurations
 ### 1. Set up admin password
-When the dialog box opens, enter your admin password.
+When the dialog box opens, create your admin password.
+![alt text](image.png)
 
 ### 2. Generate your 000_config.py
 Upon running Eden for the first time, 000_config.py is generated.
