@@ -240,7 +240,10 @@ Thank you"""
         self.PROTECTED = ("admin",)
 
         self._user_represent = None
-
+    # -------------------------------------------------------------------------
+    def table_event(self):
+        return current.s3db[self.settings.table_event_name]
+    
     # -------------------------------------------------------------------------
     def define_tables(self, migrate=True, fake_migrate=False):
         """
@@ -409,69 +412,6 @@ Thank you"""
         self.permission.define_table(migrate = migrate,
                                      fake_migrate = fake_migrate,
                                      )
-
-        #security_policy = deployment_settings.get_security_policy()
-        #if security_policy not in (1, 2, 3, 4, 5, 6, 7, 8) and \
-        #   not settings.table_permission:
-        #    # Permissions table (group<->permission)
-        #    # NB This Web2Py table is deprecated / replaced in Eden by S3Permission
-        #    settings.table_permission = define_table(
-        #        settings.table_permission_name,
-        #        Field("group_id", gtable,
-        #              requires = IS_IN_DB(db, "%s.id" % gname,
-        #                                  "%(id)s: %(role)s"),
-        #              label=messages.label_group_id),
-        #        Field("name", default="default", length=512,
-        #              requires = IS_NOT_EMPTY(),
-        #              label=messages.label_name),
-        #        Field("table_name", length=512,
-        #              # Needs to be defined after all tables created
-        #              #requires = IS_IN_SET(db.tables),
-        #              label=messages.label_table_name),
-        #        Field("record_id", "integer",
-        #              requires = IS_INT_IN_RANGE(0, 10 ** 9),
-        #              label=messages.label_record_id),
-        #        migrate = migrate,
-        #        fake_migrate=fake_migrate)
-
-        # Event table (auth_event)
-        # Records Logins & ?
-        # @ToDo: Move to s3db.auth to prevent it from being defined every request
-        #        (lazy tables means no big issue for Production but helps Devs)
-        # Deprecate?
-        # - date of most recent login is the most useful thing recorded, which we already record in the main auth_user table
-        if not settings.table_event:
-            request = current.request
-            define_table(settings.table_event_name,
-                         Field("time_stamp", "datetime",
-                               default = request.utcnow,
-                               #label = messages.label_time_stamp
-                               ),
-                         Field("client_ip",
-                               default = request.client,
-                               #label=messages.label_client_ip
-                               ),
-                         Field("user_id", utable,
-                               default = None,
-                               requires = IS_IN_DB(db, "%s.id" % uname,
-                                                   "%(id)s: %(first_name)s %(last_name)s"),
-                               #label=messages.label_user_id
-                               ),
-                         Field("origin", length=512,
-                               default = "auth",
-                               #label = messages.label_origin,
-                               requires = IS_NOT_EMPTY(),
-                               ),
-                         Field("description", "text",
-                               default = "",
-                               #label = messages.label_description,
-                               requires = IS_NOT_EMPTY(),
-                               ),
-                         migrate = migrate,
-                         fake_migrate = fake_migrate,
-                         *S3MetaFields.sync_meta_fields()
-                         )
-            settings.table_event = db[settings.table_event_name]
 
     # -------------------------------------------------------------------------
     def ignore_min_password_length(self):
