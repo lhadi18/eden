@@ -792,7 +792,7 @@ class PersonModel(S3Model):
         # ---------------------------------------------------------------------
         # Person
         #
-        pr_gender_opts = {#1: "",
+        pr_gender_opts = {1: T("unknown"),
                           2: T("female"),
                           3: T("male"),
                           }
@@ -803,7 +803,7 @@ class PersonModel(S3Model):
             pr_gender_opts[4] = T("other")
 
         if not settings.get_pr_gender_required():
-            pr_gender_opts[1] = ""
+            pr_gender_opts[1] = "unknown"
 
         pr_gender = S3ReusableField("gender", "integer",
                                     default = 1,
@@ -8098,25 +8098,35 @@ def pr_rheader(r, tabs=None):
 # =============================================================================
 def pr_nationality_opts():
     """
-        Nationality options
+    Generate nationality options for dropdowns or selection widgets.
 
-        @returns: a sorted list of nationality options
+    @returns: a sorted list of nationality options
     """
-
     T = current.T
 
+    # Get the countries data
     countries = current.gis.get_countries(key_type="code")
-    opts = sorted(((k, T(countries[k])) for k in countries.keys()),
-                  # NB applies server locale's sorting rules, not
-                  #    the user's chosen language (not easily doable
-                  #    in Python, would require pyICU or similar)
-                  key=lambda x: s3_str(x[1]),
-                  )
+
+    if isinstance(countries, dict):
+        # Handle dictionary data
+        opts = sorted(
+            ((k, T(countries[k])) for k in countries.keys()),
+            key=lambda x: s3_str(x[1]),
+        )
+    elif isinstance(countries, list):
+        # Handle list data
+        opts = sorted(
+            ((item, T(item)) for item in countries),
+            key=lambda x: s3_str(x[1]),
+        )
+    else:
+        # Raise error for unsupported data types
+        raise TypeError(f"Unsupported data type for 'countries': {type(countries).__name__}")
 
     # Stateless always last
     opts.append(("XX", T("Stateless")))
 
-    # Allow to explicitly specify an "unclear" nationality?
+    # Explicit "unclear" nationality option
     if current.deployment_settings.get_pr_nationality_explicit_unclear():
         opts.append(("??", T("unclear")))
 
@@ -10935,6 +10945,7 @@ class pr_PersonListLayout(S3DataListLayout):
     ICONS = {"date_of_birth": "calendar",
              "male": "male",
              "female": "female",
+             "unknown": "unknown",
              "nationality": "globe",
              "blood_type": "medical",
              }
@@ -11023,6 +11034,8 @@ class pr_PersonListLayout(S3DataListLayout):
                     icon = "female"
                 elif gender == 3:
                     icon = "male"
+                elif gender == 1:
+                    icon = "unknown"
                 # @todo: support "other" gender
                 #elif gender == 4:
                     #icon = ?
