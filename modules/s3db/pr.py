@@ -8098,36 +8098,35 @@ def pr_rheader(r, tabs=None):
 # =============================================================================
 def pr_nationality_opts():
     """
-        Nationality options
+    Generate nationality options for dropdowns or selection widgets.
 
-        @returns: a sorted list of nationality options
+    @returns: a sorted list of nationality options
     """
-
     T = current.T
 
     # Get the countries data
     countries = current.gis.get_countries(key_type="code")
 
-    # Check if countries is a dictionary
     if isinstance(countries, dict):
+        # Handle dictionary data
         opts = sorted(
             ((k, T(countries[k])) for k in countries.keys()),
-            key=lambda x: s3_str(x[1]),  # Sort by the localized name
+            key=lambda x: s3_str(x[1]),
         )
-    # Handle cases where countries is a list
     elif isinstance(countries, list):
+        # Handle list data
         opts = sorted(
             ((item, T(item)) for item in countries),
             key=lambda x: s3_str(x[1]),
         )
     else:
-        # Raise an error if countries is neither dict nor list
-        raise TypeError("Unsupported data type for 'countries'")
+        # Raise error for unsupported data types
+        raise TypeError(f"Unsupported data type for 'countries': {type(countries).__name__}")
 
     # Stateless always last
     opts.append(("XX", T("Stateless")))
 
-    # Allow to explicitly specify an "unclear" nationality?
+    # Explicit "unclear" nationality option
     if current.deployment_settings.get_pr_nationality_explicit_unclear():
         opts.append(("??", T("unclear")))
 
