@@ -579,7 +579,7 @@ class S3Config(Storage):
         """
             To set the Minimum Password Length
         """
-        return self.auth.get("password_min_length", int(4))
+        return self.auth.get("password_min_length", int(8))
 
     def get_auth_profile_controller(self):
         """

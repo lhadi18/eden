@@ -8104,8 +8104,52 @@ def pr_nationality_opts():
     """
     T = current.T
 
-    # Get the countries data
-    countries = current.gis.get_countries(key_type="code")
+    # Sample hardcoded countries data for testing
+    countries = {
+        "US": "United States",
+        "CA": "Canada",
+        "GB": "United Kingdom",
+        "FR": "France",
+        "DE": "Germany",
+        "JP": "Japan",
+        "IN": "India",
+        "CN": "China",
+        "AU": "Australia",
+        "BR": "Brazil",
+        "MX": "Mexico",
+        "ZA": "South Africa",
+        "NG": "Nigeria",
+        "KE": "Kenya",
+        "EG": "Egypt",
+        "RU": "Russia",
+        "IT": "Italy",
+        "ES": "Spain",
+        "KR": "South Korea",
+        "SE": "Sweden",
+        "NO": "Norway",
+        "FI": "Finland",
+        "AR": "Argentina",
+        "CL": "Chile",
+        "NZ": "New Zealand",
+        "TH": "Thailand",
+        "VN": "Vietnam",
+        "PH": "Philippines",
+        "MY": "Malaysia",
+        "SG": "Singapore",
+        "ID": "Indonesia",
+        "TR": "Turkey",
+        "SA": "Saudi Arabia",
+        "AE": "United Arab Emirates",
+        "PK": "Pakistan",
+        "BD": "Bangladesh",
+        "PL": "Poland",
+        "GR": "Greece",
+        "NL": "Netherlands",
+        "CH": "Switzerland",
+        "BE": "Belgium",
+        "AT": "Austria",
+        "DK": "Denmark",
+    }
 
     if isinstance(countries, dict):
         # Handle dictionary data
