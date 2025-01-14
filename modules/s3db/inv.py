@@ -3354,6 +3354,13 @@ class InventoryRequisitionModel(S3Model):
                                       #represent = "date",
                                       #widget = "date",
                                       ),
+                          s3_datetime("date_required_until",
+                                      label = T("Date Required Until"),
+                                      past = 0,
+                                      future = 8760,  # Hours, so 1 year
+                                      readable = True,
+                                      writable = True,
+                                      ),
                           req_priority()(),
                           # This is a component, so needs to be a super_link
                           # - can't override field name, ondelete or requires
@@ -3580,6 +3587,12 @@ class InventoryRequisitionModel(S3Model):
                          hide_time = True,
                          input_labels = {"ge": "From", "le": "To"},
                          comment = T("Search for requests required between these dates."),
+                         hidden = True,
+                         ),
+            S3DateFilter("date_required_until",
+                         hide_time = True,
+                         input_labels = {"ge": "From", "le": "To"},
+                         comment = T("Search for requests required until these dates."),
                          hidden = True,
                          ),
             ]
@@ -9823,23 +9836,32 @@ i18n.reg='%s'
                     # Filter Requests to those which are:
                     # - For Our Sites
                     # - Approved (or Open)
-                    sites = recvtable.site_id.requires.options(zero = False)
+                    sites = recvtable.site_id.requires.options(zero=False)
                     site_ids = [site[0] for site in sites]
+
+                    # Validate site_ids
+                    if not site_ids:
+                        raise HTTP(400, "No valid sites found for this operation.")
+
                     rtable = s3db.inv_req
                     ritable = s3db.inv_req_item
+
+                    # Build the query
                     if len(site_ids) > 1:
                         query = (rtable.site_id.belongs(site_ids))
                     else:
-                       query = (rtable.site_id == site_ids[0])
+                        query = (rtable.site_id == site_ids[0])
+
+                    # Add workflow or fulfillment status filter
                     if settings.get_inv_req_workflow():
-                        query &= (rtable.workflow_status == 3)
+                        query &= (rtable.workflow_status == 3)  # Approved
                     else:
                         query &= (rtable.fulfil_status.belongs((REQ_STATUS_NONE, REQ_STATUS_PARTIAL)))
-                    f = s3db.inv_recv_req.req_id 
-                    f.requires = IS_ONE_OF(db(query), "inv_req.id",
-                                           f.represent,
-                                           sort = True,
-                                           )
+
+                    # Configure the field requirements
+                    f = s3db.inv_recv_req.req_id
+                    f.requires = IS_ONE_OF(db(query), "inv_req.id", f.represent, sort=True)
+
             elif record:
                 transport_type = record.transport_type
                 if transport_type == "Air":
@@ -15292,49 +15314,54 @@ i18n.reg='%s'
                     # - Approved (or Open)
                     # - Have Items Requested From our sites which are not yet in-Transit/Fulfilled
                     sites = sendtable.site_id.requires.options(zero = False)
-                    site_ids = [site[0] for site in sites]
+                    site_ids = [site[0] for site in sites]if sites else []
                     rtable = s3db.inv_req
                     ritable = s3db.inv_req_item
-                    if len(site_ids) > 1:
-                        site_query = (ritable.site_id.belongs(site_ids))
-                    else:
-                        site_query = (ritable.site_id == site_ids[0])
-                    # Note: In order to allow request items to go via transit hops, we only check quantity_fulfil
-                    # ToDo: Add req_item_site table to track each hop
-                    query = (rtable.id == ritable.req_id) & \
-                            site_query & \
-                            (ritable.quantity_fulfil < ritable.quantity)
-                    if settings.get_inv_req_workflow():
-                        query = (rtable.workflow_status == 3) & query
-                    else:
-                        query = (rtable.fulfil_status.belongs((REQ_STATUS_NONE, REQ_STATUS_PARTIAL))) & query
-                    f = s3db.inv_send_req.req_id
-                    f.requires = IS_ONE_OF(db(query), "inv_req.id",
-                                           f.represent,
-                                           sort = True,
-                                           )
-                    if settings.get_inv_req_reserve_items():
-                        crud_fields = [f for f in sendtable.fields if sendtable[f].readable]
-                        crud_form = S3SQLCustomForm(*crud_fields,
-                                                    postprocess = inv_send_postprocess,
-                                                    )
-            elif record:
-                transport_type = record.transport_type
-                if transport_type == "Air":
-                    sendtable.transport_ref.label = T("AWB No")
-                    sendtable.registration_no.label = T("Flight")
-                elif transport_type == "Sea":
-                    sendtable.transport_ref.label = T("B/L No")
-                    sendtable.registration_no.label = T("Vessel")
-                elif transport_type == "Road":
-                    sendtable.transport_ref.label = T("Waybill/CMR No")
-                    sendtable.registration_no.label = T("Vehicle Plate Number")
-                elif transport_type == "Hand":
-                    sendtable.transport_ref.readable = False
-                    sendtable.vehicle.readable = False
-                    sendtable.registration_no.readable = False
+                    if site_ids:
+                        if len(site_ids) > 1:
+                            site_query = (ritable.site_id.belongs(site_ids))
+                        else:
+                            site_query = (ritable.site_id == site_ids[0])
+                        # Note: In order to allow request items to go via transit hops, we only check quantity_fulfil
+                        # ToDo: Add req_item_site table to track each hop
+                        query = (rtable.id == ritable.req_id) & \
+                                site_query & \
+                                (ritable.quantity_fulfil < ritable.quantity)
+                        
+                        if settings.get_inv_req_workflow():
+                            query = (rtable.workflow_status == 3) & query
+                        else:
+                            query = (rtable.fulfil_status.belongs((REQ_STATUS_NONE, REQ_STATUS_PARTIAL)))
 
-        return True
+                        f = s3db.inv_send_req.req_id
+                        f.requires = IS_ONE_OF(db(query), "inv_req.id",
+                                           f.represent,
+                                           sort = True)
+                        
+                        if settings.get_inv_req_reserve_items():
+                            crud_fields = [f for f in sendtable.fields if sendtable[f].readable]
+                            crud_form = S3SQLCustomForm(*crud_fields,postprocess=inv_send_postprocess)
+                            
+                    else: 
+                        current.log.error("No site IDs found. Ensure site configuration is valid.")
+                else: 
+                    if record:
+                        transport_type = record.transport_type
+                        if transport_type == "Air":
+                            sendtable.transport_ref.label = T("AWB No")
+                            sendtable.registration_no.label = T("Flight")
+                        elif transport_type == "Sea":
+                            sendtable.transport_ref.label = T("B/L No")
+                            sendtable.registration_no.label = T("Vessel")
+                        elif transport_type == "Road":
+                            sendtable.transport_ref.label = T("Waybill/CMR No")
+                            sendtable.registration_no.label = T("Vehicle Plate Number")
+                        elif transport_type == "Hand":
+                            sendtable.transport_ref.readable = False
+                            sendtable.vehicle.readable = False
+                            sendtable.registration_no.readable = False
+
+                return True
     s3.prep = prep
 
     def postp(r, output):
@@ -16899,6 +16926,19 @@ def inv_tabs(r):
         return tabs
 
     return []
+
+# =============================================================================
+def s3_include_simile():
+    """
+    Include the Simile timeline library.
+    """
+    from gluon import URL, current
+    s3 = current.response.s3
+
+    # Include Simile timeline scripts
+    s3.scripts.append(URL(c="static", f="scripts/simile/timeline-api.js"))
+    s3.scripts.append(URL(c="static", f="scripts/simile/simile-ajax-api.js"))
+
 
 # =============================================================================
 def inv_timeline(r, **attr):

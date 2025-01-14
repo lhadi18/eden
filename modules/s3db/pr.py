@@ -8102,16 +8102,19 @@ def pr_nationality_opts():
 
         @returns: a sorted list of nationality options
     """
-
     T = current.T
 
+    # Fetch country data
     countries = current.gis.get_countries(key_type="code")
-    opts = sorted(((k, T(countries[k])) for k in countries.keys()),
-                  # NB applies server locale's sorting rules, not
-                  #    the user's chosen language (not easily doable
-                  #    in Python, would require pyICU or similar)
-                  key=lambda x: s3_str(x[1]),
-                  )
+
+    # Handle list or dictionary structures
+    if isinstance(countries, dict):
+        opts = sorted(((k, T(v)) for k, v in countries.items()),
+                      key=lambda x: s3_str(x[1]))
+    elif isinstance(countries, list):
+        opts = sorted((k, T(v)) for k, v in countries)
+    else:
+        raise TypeError(f"Unexpected type for countries: {type(countries)}")
 
     # Stateless always last
     opts.append(("XX", T("Stateless")))
@@ -8121,6 +8124,7 @@ def pr_nationality_opts():
         opts.append(("??", T("unclear")))
 
     return opts
+
 
 # -----------------------------------------------------------------------------
 def pr_nationality_prepresent(code):
