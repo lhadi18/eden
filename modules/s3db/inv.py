@@ -15314,49 +15314,54 @@ i18n.reg='%s'
                     # - Approved (or Open)
                     # - Have Items Requested From our sites which are not yet in-Transit/Fulfilled
                     sites = sendtable.site_id.requires.options(zero = False)
-                    site_ids = [site[0] for site in sites]
+                    site_ids = [site[0] for site in sites]if sites else []
                     rtable = s3db.inv_req
                     ritable = s3db.inv_req_item
-                    if len(site_ids) > 1:
-                        site_query = (ritable.site_id.belongs(site_ids))
-                    else:
-                        site_query = (ritable.site_id == site_ids[0])
-                    # Note: In order to allow request items to go via transit hops, we only check quantity_fulfil
-                    # ToDo: Add req_item_site table to track each hop
-                    query = (rtable.id == ritable.req_id) & \
-                            site_query & \
-                            (ritable.quantity_fulfil < ritable.quantity)
-                    if settings.get_inv_req_workflow():
-                        query = (rtable.workflow_status == 3) & query
-                    else:
-                        query = (rtable.fulfil_status.belongs((REQ_STATUS_NONE, REQ_STATUS_PARTIAL))) & query
-                    f = s3db.inv_send_req.req_id
-                    f.requires = IS_ONE_OF(db(query), "inv_req.id",
-                                           f.represent,
-                                           sort = True,
-                                           )
-                    if settings.get_inv_req_reserve_items():
-                        crud_fields = [f for f in sendtable.fields if sendtable[f].readable]
-                        crud_form = S3SQLCustomForm(*crud_fields,
-                                                    postprocess = inv_send_postprocess,
-                                                    )
-            elif record:
-                transport_type = record.transport_type
-                if transport_type == "Air":
-                    sendtable.transport_ref.label = T("AWB No")
-                    sendtable.registration_no.label = T("Flight")
-                elif transport_type == "Sea":
-                    sendtable.transport_ref.label = T("B/L No")
-                    sendtable.registration_no.label = T("Vessel")
-                elif transport_type == "Road":
-                    sendtable.transport_ref.label = T("Waybill/CMR No")
-                    sendtable.registration_no.label = T("Vehicle Plate Number")
-                elif transport_type == "Hand":
-                    sendtable.transport_ref.readable = False
-                    sendtable.vehicle.readable = False
-                    sendtable.registration_no.readable = False
+                    if site_ids:
+                        if len(site_ids) > 1:
+                            site_query = (ritable.site_id.belongs(site_ids))
+                        else:
+                            site_query = (ritable.site_id == site_ids[0])
+                        # Note: In order to allow request items to go via transit hops, we only check quantity_fulfil
+                        # ToDo: Add req_item_site table to track each hop
+                        query = (rtable.id == ritable.req_id) & \
+                                site_query & \
+                                (ritable.quantity_fulfil < ritable.quantity)
+                        
+                        if settings.get_inv_req_workflow():
+                            query = (rtable.workflow_status == 3) & query
+                        else:
+                            query = (rtable.fulfil_status.belongs((REQ_STATUS_NONE, REQ_STATUS_PARTIAL)))
 
-        return True
+                        f = s3db.inv_send_req.req_id
+                        f.requires = IS_ONE_OF(db(query), "inv_req.id",
+                                           f.represent,
+                                           sort = True)
+                        
+                        if settings.get_inv_req_reserve_items():
+                            crud_fields = [f for f in sendtable.fields if sendtable[f].readable]
+                            crud_form = S3SQLCustomForm(*crud_fields,postprocess=inv_send_postprocess)
+                            
+                    else: 
+                        current.log.error("No site IDs found. Ensure site configuration is valid.")
+                else: 
+                    if record:
+                        transport_type = record.transport_type
+                        if transport_type == "Air":
+                            sendtable.transport_ref.label = T("AWB No")
+                            sendtable.registration_no.label = T("Flight")
+                        elif transport_type == "Sea":
+                            sendtable.transport_ref.label = T("B/L No")
+                            sendtable.registration_no.label = T("Vessel")
+                        elif transport_type == "Road":
+                            sendtable.transport_ref.label = T("Waybill/CMR No")
+                            sendtable.registration_no.label = T("Vehicle Plate Number")
+                        elif transport_type == "Hand":
+                            sendtable.transport_ref.readable = False
+                            sendtable.vehicle.readable = False
+                            sendtable.registration_no.readable = False
+
+                return True
     s3.prep = prep
 
     def postp(r, output):
