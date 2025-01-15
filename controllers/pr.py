@@ -105,7 +105,7 @@ def index():
                     if age_group == 1:  # Skip 'unknown' group
                         continue
                     min_age = (age_group - 2) * 10  # Adjust min and max age per group
-                    max_age = (age_group - 1) * 10 - 1
+                    max_age = age_group * 10 - 1
                     if min_age <= age_person <= max_age:
                         age_counts[label] += 1
                         break
